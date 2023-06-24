@@ -1,20 +1,15 @@
-use std::{io::BufReader, fs::File, time};
+use std::time;
 
-use lexer::Interpreter;
+use crate::parser::Parser;
 
-// mod ast;
+mod ast;
 mod lexer;
+mod parser;
 
 fn main() {
-    let file = BufReader::new(File::open("./test.txt").unwrap());
-    let mut lexer = Interpreter::new(file).unwrap();
     let now = time::Instant::now();
-    loop {
-        let next = lexer.parse_next();
-        if next.is_none() {
-            break;
-        }
-        println!("{:?}", next.unwrap());
-    }
+    let mut parser = Parser::new("test.txt").unwrap();
+    parser.run();
+
     println!("{:?}", now.elapsed());
 }

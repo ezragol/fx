@@ -3,44 +3,49 @@ use std::{
     io::{self, BufReader, Read},
 };
 
-#[derive(Debug)]
-pub enum BinaryOp {
+#[derive(Clone, Debug)]
+pub enum Symbol {
     Multiply,
     Divide,
     Add,
     Subtract,
     ToPower,
     Separate,
+    Assign,
+    Equals,
     GreaterThan,
     LessThan,
-    Assign,
-    Declaration
+    Ampersand,
+    Pipe,
+    Negate
 }
 
-#[derive(Debug)]
-pub enum Bracket {
+#[derive(Clone, Debug)]
+pub enum Container {
     Parens(Is),
     Square(Is),
     Curly(Is),
+    DoubleQuote,
+    SingleQuote,
+    BackQuote
 }
 
 // saving time sue me
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Is {
     Open,
     Closed,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Token {
     Extern,
     Identifier(String),
     Number(Option<isize>, Option<f64>),
     When,
-    Default,
-    Binary(BinaryOp),
+    Operation(Symbol),
     Let,
-    Bracket(Bracket),
+    Wall(Container),
 }
 
 pub struct Interpreter {
@@ -53,6 +58,7 @@ impl Interpreter {
     pub fn new(mut buf: BufReader<File>) -> io::Result<Interpreter> {
         let mut bytes = vec![];
         buf.read_to_end(&mut bytes)?;
+        bytes.push(0);
 
         let size = bytes.len().clone();
         Ok(Interpreter {
@@ -92,7 +98,6 @@ impl Interpreter {
             let token = match identifier.as_str() {
                 "extern" => Token::Extern,
                 "when" => Token::When,
-                "default" => Token::Default,
                 "let" => Token::Let,
                 i => Token::Identifier(i.to_string()),
             };
@@ -132,33 +137,47 @@ impl Interpreter {
             }
         }
 
-        let binary_op = match next {
-            '*' => Some(BinaryOp::Multiply),
-            '/' => Some(BinaryOp::Divide),
-            '+' => Some(BinaryOp::Add),
-            '-' => Some(BinaryOp::Subtract),
-            '^' => Some(BinaryOp::ToPower),
-            ',' => Some(BinaryOp::Separate),
-            '>' => Some(BinaryOp::GreaterThan),
-            '<' => Some(BinaryOp::LessThan),
-            '=' => Some(BinaryOp::Assign),
-            ':' => Some(BinaryOp::Declaration),
+        // check binary operators
+
+        let symbol = match next {
+            '*' => Some(Symbol::Multiply),
+            '/' => Some(Symbol::Divide),
+            '+' => Some(Symbol::Add),
+            '-' => Some(Symbol::Subtract),
+            '^' => Some(Symbol::ToPower),
+            ',' => Some(Symbol::Separate),
+            '=' => Some(Symbol::Assign),
+            ':' => Some(Symbol::Equals),
+            '>' => Some(Symbol::GreaterThan),
+            '<' => Some(Symbol::LessThan),
+            '&' => Some(Symbol::Ampersand),
+            '|' => Some(Symbol::Pipe),
+            '!' => Some(Symbol::Negate),
             _ => None,
         };
 
-        if let Some(binary) = binary_op {
-            return Some(Token::Binary(binary));
+        if let Some(op) = symbol {
+            return Some(Token::Operation(op));
         }
 
-        let brackets = match next {
-            '(' => Some(Bracket::Parens(Is::Open)),
-            ')' => Some(Bracket::Parens(Is::Closed)),
-            '[' => Some(Bracket::Square(Is::Open)),
-            ']' => Some(Bracket::Square(Is::Closed)),
-            '{' => Some(Bracket::Curly(Is::Open)),
-            '}' => Some(Bracket::Curly(Is::Closed)),
+        let container = match next {
+            '(' => Some(Container::Parens(Is::Open)),
+            ')' => Some(Container::Parens(Is::Closed)),
+            '[' => Some(Container::Square(Is::Open)),
+            ']' => Some(Container::Square(Is::Closed)),
+            '{' => Some(Container::Curly(Is::Open)),
+            '}' => Some(Container::Curly(Is::Closed)),
+            '\"' => Some(Container::DoubleQuote),
+            '\'' => Some(Container::SingleQuote),
+            '`' => Some(Container::BackQuote),
             _ => None,
         };
-        return Some(Token::Bracket(brackets?));
+
+        // returns none if the current token hasn't matched anything yet
+        return Some(Token::Wall(container?));
+    }
+
+    pub fn done(&self) -> bool {
+        self.index == self.size
     }
 }
