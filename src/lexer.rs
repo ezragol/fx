@@ -3,6 +3,7 @@ use std::{
     io::{self, BufReader, Read},
 };
 
+#[repr(C)]
 #[derive(Clone, Debug)]
 pub enum Symbol {
     Multiply,
@@ -17,9 +18,10 @@ pub enum Symbol {
     LessThan,
     Ampersand,
     Pipe,
-    Negate
+    Negate,
 }
 
+#[repr(C)]
 #[derive(Clone, Debug)]
 pub enum Container {
     Parens(Is),
@@ -27,16 +29,18 @@ pub enum Container {
     Curly(Is),
     DoubleQuote,
     SingleQuote,
-    BackQuote
+    BackQuote,
 }
 
 // saving time sue me
+#[repr(C)]
 #[derive(Clone, Debug)]
 pub enum Is {
     Open,
     Closed,
 }
 
+#[repr(C)]
 #[derive(Clone, Debug)]
 pub enum Token {
     Extern,

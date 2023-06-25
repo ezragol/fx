@@ -1,12 +1,8 @@
+use crate::parser::Parser;
 use std::time;
 
-use crate::parser::Parser;
-
-mod ast;
-mod lexer;
-mod parser;
-
-fn main() {
+#[test]
+fn test() {
     let now = time::Instant::now();
     let mut parser = Parser::new("test.txt").unwrap();
     parser.run();

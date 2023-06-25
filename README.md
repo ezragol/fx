@@ -1,6 +1,9 @@
 # fx
 writing a language in Rust, then extending it to C for LLVM
 
+# rust-c-ffi
+use cbindgen (with cbindgen.toml)
+
 # parser notes
 - step one: find ranges `[x,y]` and take their tokens out of the tree so they don't interfere with op prec
 - step two: take apart argument lists and remove the tokens so that the arguments are parsed differently from other uses of commas
