@@ -11,9 +11,9 @@ pub enum Symbol {
     Add,
     Subtract,
     ToPower,
-    Separate,
-    Assign,
+    Comma,
     Equals,
+    Colon,
     GreaterThan,
     LessThan,
     Ampersand,
@@ -149,9 +149,9 @@ impl Interpreter {
             '+' => Some(Symbol::Add),
             '-' => Some(Symbol::Subtract),
             '^' => Some(Symbol::ToPower),
-            ',' => Some(Symbol::Separate),
-            '=' => Some(Symbol::Assign),
-            ':' => Some(Symbol::Equals),
+            ',' => Some(Symbol::Comma),
+            '=' => Some(Symbol::Equals),
+            ':' => Some(Symbol::Colon),
             '>' => Some(Symbol::GreaterThan),
             '<' => Some(Symbol::LessThan),
             '&' => Some(Symbol::Ampersand),
@@ -183,5 +183,13 @@ impl Interpreter {
 
     pub fn done(&self) -> bool {
         self.index == self.size
+    }
+
+    pub fn add(&mut self) {
+        self.index += 1;
+    }
+
+    pub fn subtract(&mut self) {
+        self.index -= 1;
     }
 }
