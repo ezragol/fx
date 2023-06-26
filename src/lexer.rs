@@ -23,7 +23,7 @@ pub enum Symbol {
 
 #[repr(C)]
 #[derive(Clone, Debug)]
-pub enum Container {
+pub enum Bracket {
     Parens(Is),
     Square(Is),
     Curly(Is),
@@ -49,7 +49,7 @@ pub enum Token {
     When,
     Operation(Symbol),
     Let,
-    Wall(Container),
+    Wall(Bracket),
 }
 
 pub struct Interpreter {
@@ -164,21 +164,21 @@ impl Interpreter {
             return Some(Token::Operation(op));
         }
 
-        let container = match next {
-            '(' => Some(Container::Parens(Is::Open)),
-            ')' => Some(Container::Parens(Is::Closed)),
-            '[' => Some(Container::Square(Is::Open)),
-            ']' => Some(Container::Square(Is::Closed)),
-            '{' => Some(Container::Curly(Is::Open)),
-            '}' => Some(Container::Curly(Is::Closed)),
-            '\"' => Some(Container::DoubleQuote),
-            '\'' => Some(Container::SingleQuote),
-            '`' => Some(Container::BackQuote),
+        let bracket = match next {
+            '(' => Some(Bracket::Parens(Is::Open)),
+            ')' => Some(Bracket::Parens(Is::Closed)),
+            '[' => Some(Bracket::Square(Is::Open)),
+            ']' => Some(Bracket::Square(Is::Closed)),
+            '{' => Some(Bracket::Curly(Is::Open)),
+            '}' => Some(Bracket::Curly(Is::Closed)),
+            '\"' => Some(Bracket::DoubleQuote),
+            '\'' => Some(Bracket::SingleQuote),
+            '`' => Some(Bracket::BackQuote),
             _ => None,
         };
 
         // returns none if the current token hasn't matched anything yet
-        return Some(Token::Wall(container?));
+        return Some(Token::Wall(bracket?));
     }
 
     pub fn done(&self) -> bool {

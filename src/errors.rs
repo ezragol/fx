@@ -15,14 +15,13 @@ pub struct EofError;
 pub struct IdentifierError;
 
 #[derive(Debug, Clone)]
-pub struct UnexpectedTokenError<T, U> {
+pub struct UnexpectedTokenError<T> {
     expected: T,
-    actual: U
 }
 
-impl <T, U> UnexpectedTokenError<T, U> {
-    pub fn new(expected: T, actual: U) -> UnexpectedTokenError<T, U> {
-        UnexpectedTokenError { expected, actual }
+impl <T> UnexpectedTokenError<T> {
+    pub fn new(expected: T) -> UnexpectedTokenError<T> {
+        UnexpectedTokenError { expected }
     }
 }
 
@@ -34,7 +33,7 @@ impl fmt::Display for DeclarationError {
 
 impl fmt::Display for RangeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "expected properly formatted range!")
+        write!(f, "improperly formatted range!")
     }
 }
 
@@ -50,11 +49,11 @@ impl fmt::Display for IdentifierError {
     }
 }
 
-impl <T, U> fmt::Display for UnexpectedTokenError<T, U>
-    where T: fmt::Debug, U: fmt::Debug {
+impl <T> fmt::Display for UnexpectedTokenError<T>
+    where T: fmt::Debug {
 
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "expected type {:#?}, found {:#?}!", self.expected, self.actual)
+        write!(f, "expected {:?}!", self.expected)
     }
 }
 
@@ -62,4 +61,4 @@ impl Error for DeclarationError {}
 impl Error for RangeError {} 
 impl Error for EofError {}
 impl Error for IdentifierError {}
-impl <T: fmt::Debug, U: fmt::Debug> Error for UnexpectedTokenError<T, U> {}
+impl <T: fmt::Debug> Error for UnexpectedTokenError<T> {}

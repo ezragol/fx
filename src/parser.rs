@@ -1,13 +1,12 @@
 use std::{
     fs::File,
     io::{self, BufReader},
-    isize::MAX,
 };
 
 use crate::{
     ast::*,
     errors::*,
-    lexer::{Container, Interpreter, Is, Symbol, Token},
+    lexer::*,
 };
 
 pub struct Parser {
@@ -91,7 +90,7 @@ impl Parser {
                 return Ok(Box::new(Range::new(min, end)));
             } else {
                 self.lexer.subtract();
-                if let Token::Wall(Container::Square(Is::Closed)) = self.next_token()? {
+                if let Token::Wall(Bracket::Square(Is::Closed)) = self.next_token()? {
                     return Ok(Box::new(Range::new(min, max)));
                 }
             }
@@ -103,18 +102,16 @@ impl Parser {
         let identifier = self.expect_identifier()?;
         let next = self.next_token()?;
         match next {
-            Token::Wall(Container::Parens(Is::Open)) => Ok(Box::new(FunctionDefinition::new(
+            Token::Wall(Bracket::Parens(Is::Open)) => Ok(Box::new(FunctionDefinition::new(
                 identifier,
                 self.parse_args()?,
-                self.parse_block()?,
+                self.parse_block(true)?,
             ))),
             Token::Operation(Symbol::Equals) => Ok(Box::new(VariableDefinition::new(
                 identifier,
                 self.parse_expression()?,
             ))),
-            actual => {
-                Err(UnexpectedTokenError::new(Token::Operation(Symbol::Equals), actual).into())
-            }
+            actual => Err(UnexpectedTokenError::new(Token::Operation(Symbol::Equals)).into()),
         }
     }
 
@@ -122,8 +119,11 @@ impl Parser {
         Ok(Box::new(NumberLiteral::new(false, 0, 0.0)))
     }
 
-    fn parse_block(&mut self) -> Result<Vec<Expr>> {
-        Ok(vec![])
+    fn parse_block(&mut self, with_assignment: bool) -> Result<Vec<Expr>> {
+        if let Token::Operation(Symbol::Equals) = self.next_token()? {
+            return Ok(vec![])
+        }
+        Err(UnexpectedTokenError::new(Symbol::Equals).into())
     }
 
     // parse arguments and consume closing parentheses
@@ -131,7 +131,7 @@ impl Parser {
         let mut args = vec![];
         while let Ok(identifier) = self.expect_identifier() {
             match self.next_token()? {
-                Token::Wall(Container::Parens(Is::Closed)) => {
+                Token::Wall(Bracket::Parens(Is::Closed)) => {
                     args.push((identifier, None));
                     return Ok(args);
                 }
@@ -140,9 +140,13 @@ impl Parser {
                 }
                 Token::Operation(Symbol::Colon) => {
                     match self.next_token()? {
-                        Token::Wall(Container::Square(Is::Open)) => {
+                        Token::Wall(Bracket::Square(Is::Open)) => {
                             args.push((identifier, Some(self.parse_range()?)));
-                            self.lexer.add();
+                            if let Token::Wall(Bracket::Parens(Is::Closed)) = self.next_token()? {
+                                return Ok(args);
+                            } else {
+                                self.lexer.add();
+                            }
                         }
                         Token::Identifier(id) => {
                             // todo
@@ -154,11 +158,10 @@ impl Parser {
                     }
                 }
                 _ => {
-                    return Err(IdentifierError.into());
+                    return Err(UnexpectedTokenError::new(Symbol::Comma).into());
                 }
             }
         }
-        println!("{:#?}", args);
         Err(EofError.into())
     }
 
@@ -175,7 +178,14 @@ impl Parser {
                 break;
             } else if !first {
                 if let Token::Let = next.clone().unwrap() {
-                    tree.push(self.parse_definition().unwrap());
+                    match self.parse_definition() {
+                        Err(e) => {
+                            eprintln!("{}", e);
+                        },
+                        Ok(d) => {
+                            tree.push(d);
+                        }
+                    }
                 }
             }
 
