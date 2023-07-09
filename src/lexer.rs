@@ -50,6 +50,7 @@ pub enum Token {
     Operation(Symbol),
     Let,
     Wall(Bracket),
+    Newline,
 }
 
 pub struct Interpreter {
@@ -57,6 +58,8 @@ pub struct Interpreter {
     index: usize,
     size: usize,
 }
+
+// DEAL with newlines / how to figure out what is an expression
 
 impl Interpreter {
     pub fn new(mut buf: BufReader<File>) -> io::Result<Interpreter> {
@@ -86,6 +89,9 @@ impl Interpreter {
         let mut identifier = String::new();
 
         while next.is_whitespace() {
+            if next == '\n' {
+                return Some(Token::Newline);
+            }
             next = self.next()?;
         }
 
@@ -185,11 +191,16 @@ impl Interpreter {
         self.index == self.size
     }
 
-    pub fn add(&mut self) {
-        self.index += 1;
-    }
-
-    pub fn subtract(&mut self) {
-        self.index -= 1;
+    pub fn push(&mut self, amount: isize) {
+        if amount < 0 {
+            let abs = amount.abs() as usize;
+            if abs > self.index {
+                self.index = 0
+            } else {
+                self.index -= abs;
+            }
+        } else {
+            self.index += amount as usize;
+        }
     }
 }

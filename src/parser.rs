@@ -3,11 +3,7 @@ use std::{
     io::{self, BufReader},
 };
 
-use crate::{
-    ast::*,
-    errors::*,
-    lexer::*,
-};
+use crate::{ast::*, errors::*, lexer::*};
 
 pub struct Parser {
     lexer: Interpreter,
@@ -55,14 +51,14 @@ impl Parser {
         Err(EofError.into())
     }
 
-    fn expect_num(&mut self) -> Result<Box<NumberLiteral>> {
+    fn expect_num(&mut self) -> Result<NumberLiteral> {
         let token = self.next_token()?;
         if let Token::Number(int, float) = token {
-            return Ok(Box::new(NumberLiteral::new(
+            return Ok(NumberLiteral::new(
                 float.is_some(),
                 int.unwrap_or(0),
                 float.unwrap_or(0.0),
-            )));
+            ));
         }
         Err(RangeError.into())
     }
@@ -75,23 +71,23 @@ impl Parser {
         Err(IdentifierError.into())
     }
 
-    fn parse_range(&mut self) -> Result<Expr> {
-        let max = Box::new(NumberLiteral::new(false, std::isize::MAX, 0.0));
-        let mut min = Box::new(NumberLiteral::new(false, std::isize::MIN, 0.0));
+    fn parse_range(&mut self) -> Result<impl Expression> {
+        let mut min = NumberLiteral::new(false, std::isize::MIN, 0.0);
+        let max = NumberLiteral::new(false, std::isize::MAX, 0.0);
 
         if let Ok(start) = self.expect_num() {
             min = start;
         } else {
-            self.lexer.subtract();
+            self.lexer.push(-1);
         }
 
         if let Token::Operation(Symbol::Comma) = self.next_token()? {
             if let Ok(end) = self.expect_num() {
-                return Ok(Box::new(Range::new(min, end)));
+                return Ok(Range::new(Box::new(min), Box::new(end)));
             } else {
-                self.lexer.subtract();
+                self.lexer.push(-1);
                 if let Token::Wall(Bracket::Square(Is::Closed)) = self.next_token()? {
-                    return Ok(Box::new(Range::new(min, max)));
+                    return Ok(Range::new(Box::new(min), Box::new(max)));
                 }
             }
         }
@@ -111,17 +107,59 @@ impl Parser {
                 identifier,
                 self.parse_expression()?,
             ))),
-            actual => Err(UnexpectedTokenError::new(Token::Operation(Symbol::Equals)).into()),
+            _ => Err(UnexpectedTokenError::new(Token::Operation(Symbol::Equals)).into()),
+        }
+    }
+
+    fn read_expr(&mut self) -> Result<Vec<Token>> {
+        let mut tokens = vec![];
+        loop {
+            let next = self.next_token()?;
+            if let Token::Newline = next {
+                self.lexer.push(-2);
+                let look_behind = self.next_token()?;
+                match look_behind {
+                    Token::Operation(_)
+                    | Token::Wall(Bracket::Parens(Is::Open))
+                    | Token::Wall(Bracket::Square(Is::Open)) => {
+                        self.lexer.push(2);
+                    }
+                    _ => {
+                        self.lexer.push(1);
+                        let look_ahead = self.next_token()?;
+                        match look_ahead {
+                            Token::Operation(_)
+                            | Token::Wall(Bracket::Parens(Is::Closed))
+                            | Token::Wall(Bracket::Square(Is::Closed)) => {
+                                self.lexer.push(-1);
+                            }
+                            _ => {
+                                return Ok(tokens);
+                            }
+                        }
+                    }
+                }
+            } else {
+                tokens.push(next);
+            }
         }
     }
 
     fn parse_expression(&mut self) -> Result<Expr> {
-        Ok(Box::new(NumberLiteral::new(false, 0, 0.0)))
+        let mut tokens = vec![];
+        loop {
+            let next = self.next_token()?;
+
+            if let Token::Let = next {
+                break;
+            }
+            tokens.push(next);
+        }
     }
 
     fn parse_block(&mut self, with_assignment: bool) -> Result<Vec<Expr>> {
         if let Token::Operation(Symbol::Equals) = self.next_token()? {
-            return Ok(vec![])
+            return Ok(vec![]);
         }
         Err(UnexpectedTokenError::new(Symbol::Equals).into())
     }
@@ -141,11 +179,11 @@ impl Parser {
                 Token::Operation(Symbol::Colon) => {
                     match self.next_token()? {
                         Token::Wall(Bracket::Square(Is::Open)) => {
-                            args.push((identifier, Some(self.parse_range()?)));
+                            args.push((identifier, Some(Box::new(self.parse_range()?))));
                             if let Token::Wall(Bracket::Parens(Is::Closed)) = self.next_token()? {
                                 return Ok(args);
                             } else {
-                                self.lexer.add();
+                                self.lexer.push(1);
                             }
                         }
                         Token::Identifier(id) => {
@@ -181,7 +219,7 @@ impl Parser {
                     match self.parse_definition() {
                         Err(e) => {
                             eprintln!("{}", e);
-                        },
+                        }
                         Ok(d) => {
                             tree.push(d);
                         }
