@@ -71,7 +71,7 @@ impl Parser {
         Err(IdentifierError.into())
     }
 
-    fn parse_range(&mut self) -> Result<impl Expression> {
+    fn parse_range(&mut self) -> Result<Range> {
         let mut min = NumberLiteral::new(false, std::isize::MIN, 0.0);
         let max = NumberLiteral::new(false, std::isize::MAX, 0.0);
 
@@ -111,50 +111,48 @@ impl Parser {
         }
     }
 
-    fn read_expr(&mut self) -> Result<Vec<Token>> {
+    fn read_tokens(&mut self) -> Result<Vec<Token>> {
         let mut tokens = vec![];
         loop {
-            let next = self.next_token()?;
-            if let Token::Newline = next {
-                self.lexer.push(-2);
-                let look_behind = self.next_token()?;
-                match look_behind {
-                    Token::Operation(_)
-                    | Token::Wall(Bracket::Parens(Is::Open))
-                    | Token::Wall(Bracket::Square(Is::Open)) => {
-                        self.lexer.push(2);
-                    }
-                    _ => {
-                        self.lexer.push(1);
-                        let look_ahead = self.next_token()?;
-                        match look_ahead {
-                            Token::Operation(_)
-                            | Token::Wall(Bracket::Parens(Is::Closed))
-                            | Token::Wall(Bracket::Square(Is::Closed)) => {
-                                self.lexer.push(-1);
-                            }
-                            _ => {
-                                return Ok(tokens);
+            let maybe_next = self.next_token();
+            if let Ok(next) = maybe_next {
+                if let Token::Newline = next {
+                    self.lexer.push(-3);
+                    let look_behind = self.next_token()?;
+                    match look_behind {
+                        Token::Operation(_)
+                        | Token::Wall(Bracket::Parens(Is::Open))
+                        | Token::Wall(Bracket::Square(Is::Open)) => {
+                            self.lexer.push(2);
+                        }
+                        _ => {
+                            self.lexer.push(1);
+                            let look_ahead = self.next_token()?;
+                            match look_ahead {
+                                Token::Operation(_)
+                                | Token::Wall(Bracket::Parens(Is::Closed))
+                                | Token::Wall(Bracket::Square(Is::Closed)) => {
+                                    self.lexer.push(-1);
+                                }
+                                _ => {
+                                    tokens.push(next);
+                                }
                             }
                         }
                     }
+                } else {
+                    tokens.push(next);
                 }
             } else {
-                tokens.push(next);
+                return Ok(tokens);
             }
         }
     }
 
     fn parse_expression(&mut self) -> Result<Expr> {
-        let mut tokens = vec![];
-        loop {
-            let next = self.next_token()?;
-
-            if let Token::Let = next {
-                break;
-            }
-            tokens.push(next);
-        }
+        let mut tokens = self.read_tokens()?;
+        println!("{:?}", tokens);
+        Ok(Box::new(NumberLiteral::new(false, 0, 0.0)))
     }
 
     fn parse_block(&mut self, with_assignment: bool) -> Result<Vec<Expr>> {
@@ -218,7 +216,7 @@ impl Parser {
                 if let Token::Let = next.clone().unwrap() {
                     match self.parse_definition() {
                         Err(e) => {
-                            eprintln!("{}", e);
+                            panic!("{}", e);
                         }
                         Ok(d) => {
                             tree.push(d);
