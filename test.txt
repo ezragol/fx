@@ -2,9 +2,9 @@ let fib(n) =
     1 when n <= 1,
     fib(n - 1) + fib(n - 2)
 
-let name = name
+let name = age
+
+name
             .to_string()
             .as_str()
-            .unwrap()
-
-let age = 5
+            .unwrap() +

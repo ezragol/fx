@@ -28,7 +28,8 @@ impl Parser {
     pub fn from_tree(tokens: Vec<Token>) -> Parser {
         Parser {
             ast: vec![],
-            tokens, index: 0
+            tokens,
+            index: 0,
         }
     }
 
@@ -118,12 +119,15 @@ impl Parser {
             Token::Grouping(args) => Ok(Box::new(FunctionDefinition::new(
                 identifier,
                 self.parse_args(args)?,
-                self.parse_block(true)?,
-            ))),
-            Token::Operation(Symbol::Equals) => Ok(Box::new(VariableDefinition::new(
-                identifier,
                 self.parse_expression()?,
             ))),
+            Token::Operation(Symbol::Equals) => {
+                self.back();
+                Ok(Box::new(VariableDefinition::new(
+                    identifier,
+                    self.parse_expression()?,
+                )))
+            }
             _ => Err(DeclarationError.into()),
         }
     }
@@ -154,11 +158,10 @@ impl Parser {
         }
     }
 
-    fn ahead_is_trailing(&mut self) -> Option<Token> {
-        if let Ok(ahead) = self.look_ahead() {
-            self.back();
-            match ahead {
-                Token::Operation(_) => Some(ahead),
+    fn behind_is_expr(&mut self) -> Option<Token> {
+        if let Ok(behind) = self.look_behind() {
+            match behind {
+                Token::Identifier(_) | Token::Grouping(_) => Some(behind),
                 _ => None,
             }
         } else {
@@ -166,7 +169,7 @@ impl Parser {
         }
     }
 
-    fn behind_is_leading(&mut self) -> Option<Token> {
+    fn behind_is_operation(&mut self) -> Option<Token> {
         if let Ok(behind) = self.look_behind() {
             match behind {
                 Token::Operation(_) => Some(behind),
@@ -198,34 +201,30 @@ impl Parser {
         self.push(1);
     }
 
-    fn is_empty(grouping: Vec<Token>) -> bool {
-        return grouping.len() == 2;
-    }
-
     fn read_expr_tokens(&mut self) -> Result<Vec<Token>> {
         let mut tokens = vec![];
         loop {
             if let Ok(token) = self.next_token() {
                 match token {
                     Token::Newline => {
-                        if let Ok(Token::Let) = self.next_token() {
+                        let next = self.next_token();
+                        if let Ok(Token::Let) = next {
                             self.back();
+                            break;
+                        } else if let Ok(Token::Operation(_)) = next {
+                            if let None = self.behind_is_expr() {
+                                break;
+                            }
+                        } else if let None = self.behind_is_operation() {
                             break;
                         }
                     }
-                    Token::Identifier(_) | Token::Number(_, _) | Token::Grouping(_) => {
-                        if let Some(behind) = self.behind_is_leading() {
-                            tokens.push(behind);
-                        } else {
-                            return Err(IdentifierError.into());
-                        }
+                    Token::Operation(_)
+                    | Token::Identifier(_)
+                    | Token::Number(_, _)
+                    | Token::Grouping(_)
+                    | Token::When => {
                         tokens.push(token);
-                        if let Some(ahead) = self.ahead_is_trailing() {
-                            tokens.push(ahead);
-                            self.forward();
-                        } else {
-                            break;
-                        }
                     }
                     _ => {
                         break;
@@ -242,30 +241,21 @@ impl Parser {
         let mut tokens = self.read_expr_tokens()?;
         println!("{:#?}", tokens);
         tokens.pop();
-        for token in tokens {
-
-        }
+        for token in tokens {}
         Ok(Box::new(NumberLiteral::new(false, 0, 0.0)))
-    }
-
-    fn parse_block(&mut self, with_assignment: bool) -> Result<Vec<Expr>> {
-        if let Ok(Token::Operation(Symbol::Equals)) = self.next_token() {
-            return Ok(vec![]);
-        }
-        Err(DeclarationError.into())
     }
 
     fn parse_args(&mut self, args: Vec<Token>) -> Result<Vec<String>> {
         let mut arg_tree = vec![];
         let mut a = Parser::from_tree(args);
-        // consume opening parentheses
         a.forward();
+
         while let Ok(identifier) = a.expect_identifier() {
             if let Ok(next) = a.next_token() {
                 match next {
                     Token::Operation(Symbol::Comma) => {
                         arg_tree.push(identifier);
-                    },
+                    }
                     Token::Wall(Bracket::Parens(Is::Closed)) => {
                         arg_tree.push(identifier);
                         return Ok(arg_tree);
@@ -299,6 +289,21 @@ impl Parser {
                         Ok(d) => {
                             tree.push(d);
                         }
+                    }
+                } else {
+                    match next.unwrap() {
+                        Token::Identifier(_) | Token::Extern | Token::Grouping(_) => {
+                            self.back();
+                            match self.parse_expression() {
+                                Err(e) => {
+                                    err!("error: {}", e);
+                                }
+                                Ok(d) => {
+                                    tree.push(d);
+                                }
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }
