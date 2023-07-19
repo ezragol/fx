@@ -198,6 +198,10 @@ impl Parser {
         self.push(1);
     }
 
+    fn is_empty(grouping: Vec<Token>) -> bool {
+        return grouping.len() == 2;
+    }
+
     fn read_expr_tokens(&mut self) -> Result<Vec<Token>> {
         let mut tokens = vec![];
         loop {
@@ -236,7 +240,11 @@ impl Parser {
 
     fn parse_expression(&mut self) -> Result<Expr> {
         let mut tokens = self.read_expr_tokens()?;
-        // println!("{:?}", tokens);
+        println!("{:#?}", tokens);
+        tokens.pop();
+        for token in tokens {
+
+        }
         Ok(Box::new(NumberLiteral::new(false, 0, 0.0)))
     }
 

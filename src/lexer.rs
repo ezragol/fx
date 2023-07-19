@@ -21,6 +21,8 @@ pub enum Symbol {
     Ampersand,
     Pipe,
     Negate,
+    Dot,
+    Compound(Box<Symbol>, Box<Symbol>),
 }
 
 #[repr(C)]
@@ -79,7 +81,7 @@ impl Interpreter {
     }
 
     fn next(&mut self) -> Result<char> {
-        if self.index < self.size -1 {
+        if self.index < self.size {
             let byte = self.bytes[self.index];
             self.index += 1;
             Ok(byte as char)
@@ -123,6 +125,31 @@ impl Interpreter {
         return Err(GroupingError.into());
     }
 
+    fn parse_symbol(next: char) -> Option<Symbol> {
+        match next {
+            '*' => Some(Symbol::Multiply),
+            '/' => Some(Symbol::Divide),
+            '+' => Some(Symbol::Add),
+            '-' => Some(Symbol::Subtract),
+            '^' => Some(Symbol::ToPower),
+            ',' => Some(Symbol::Comma),
+            '=' => Some(Symbol::Equals),
+            ':' => Some(Symbol::Colon),
+            '>' => Some(Symbol::GreaterThan),
+            '<' => Some(Symbol::LessThan),
+            '&' => Some(Symbol::Ampersand),
+            '|' => Some(Symbol::Pipe),
+            '!' => Some(Symbol::Negate),
+            '.' => Some(Symbol::Dot),
+            _ => None,
+        }
+    }
+
+    fn ident(next: char) -> bool {
+        let symbols = ['_', '$'];
+        next.is_alphabetic() || symbols.contains(&next)
+    }
+
     pub fn parse_next(&mut self) -> Result<Token> {
         let mut next = self.next()?;
         let mut identifier = String::new();
@@ -141,11 +168,11 @@ impl Interpreter {
             next = self.next()?;
         }
 
-        if next.is_alphabetic() {
+        if Interpreter::ident(next) {
             loop {
                 identifier.push(next);
                 next = self.next()?;
-                if !next.is_alphanumeric() {
+                if !Interpreter::ident(next) && !next.is_numeric() {
                     self.index -= 1;
                     break;
                 }
@@ -175,13 +202,16 @@ impl Interpreter {
             let mut int_val: Option<isize> = None;
             let mut float_val = None;
             self.index -= 1;
-
-            if num.contains('.') {
-                float_val = Some(num.parse::<f64>().unwrap());
+            if num == "." {
+                next = '.';
             } else {
-                int_val = Some(num.parse::<isize>().unwrap());
+                if num.contains('.') {
+                    float_val = Some(num.parse::<f64>().unwrap());
+                } else {
+                    int_val = Some(num.parse::<isize>().unwrap());
+                }
+                return Ok(Token::Number(int_val, float_val));
             }
-            return Ok(Token::Number(int_val, float_val));
         }
 
         if next == '#' {
@@ -194,25 +224,15 @@ impl Interpreter {
         }
 
         // check binary operators
-
-        let symbol = match next {
-            '*' => Some(Symbol::Multiply),
-            '/' => Some(Symbol::Divide),
-            '+' => Some(Symbol::Add),
-            '-' => Some(Symbol::Subtract),
-            '^' => Some(Symbol::ToPower),
-            ',' => Some(Symbol::Comma),
-            '=' => Some(Symbol::Equals),
-            ':' => Some(Symbol::Colon),
-            '>' => Some(Symbol::GreaterThan),
-            '<' => Some(Symbol::LessThan),
-            '&' => Some(Symbol::Ampersand),
-            '|' => Some(Symbol::Pipe),
-            '!' => Some(Symbol::Negate),
-            _ => None,
-        };
+        let symbol = Interpreter::parse_symbol(next);
 
         if let Some(op) = symbol {
+            if let Ok(another) = self.next() {
+                if let Some(second) = Interpreter::parse_symbol(another) {
+                    return Ok(Token::Operation(Symbol::Compound(op.into(), second.into())));
+                }
+                self.index -= 1;
+            }
             return Ok(Token::Operation(op));
         }
 
@@ -248,6 +268,6 @@ impl Interpreter {
     }
 
     pub fn done(&self) -> bool {
-        self.index == self.size - 1
+        self.index == self.size
     }
 }

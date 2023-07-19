@@ -35,16 +35,9 @@ pub struct BinaryOperation {
 }
 
 #[derive(Debug)]
-pub struct Predicate {
-    op: u8,
-    left: Expr,
-    right: Expr,
-}
-
-#[derive(Debug)]
 pub struct WhenExpression {
     result: Expr,
-    predicate: Predicate,
+    predicate: BinaryOperation,
 }
 
 #[derive(Debug)]
