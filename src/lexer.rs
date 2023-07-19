@@ -51,6 +51,7 @@ pub enum Token {
     Let,
     Wall(Bracket),
     Newline,
+    Grouping(Vec<Token>)
 }
 
 pub struct Interpreter {
@@ -84,12 +85,47 @@ impl Interpreter {
         return None;
     }
 
+    fn parse_grouping(&mut self, bracket: Bracket) -> Option<Token> {
+        match bracket {
+            Bracket::Parens(Is::Closed) | Bracket::Square(Is::Closed) => {
+                return Some(Token::Wall(bracket));
+            },
+            _ => {}
+        }
+        let mut group = vec![Token::Wall(bracket)];
+        loop {
+            let next = self.parse_next();
+            match next {
+                Some(Token::Wall(Bracket::Parens(Is::Closed)))
+                | Some(Token::Wall(Bracket::Square(Is::Closed))) => {
+                    group.push(next?);
+                    break;
+                }
+                Some(Token::Newline) => {}
+                Some(_) => {
+                    group.push(next?);
+                },
+                None => {
+                    break;
+                }
+            }
+        }
+        return Some(Token::Grouping(group));
+    }
+
     pub fn parse_next(&mut self) -> Option<Token> {
-        let mut next = ' ';
+        let mut next = self.next()?;
         let mut identifier = String::new();
 
         while next.is_whitespace() {
             if next == '\n' {
+                loop {
+                    next = self.next()?;
+                    if next != '\n' {
+                        self.index -= 1;
+                        break;
+                    }
+                }
                 return Some(Token::Newline);
             }
             next = self.next()?;
@@ -169,38 +205,29 @@ impl Interpreter {
         if let Some(op) = symbol {
             return Some(Token::Operation(op));
         }
-
+        
         let bracket = match next {
             '(' => Some(Bracket::Parens(Is::Open)),
-            ')' => Some(Bracket::Parens(Is::Closed)),
             '[' => Some(Bracket::Square(Is::Open)),
+            ')' => Some(Bracket::Parens(Is::Closed)),
             ']' => Some(Bracket::Square(Is::Closed)),
-            '{' => Some(Bracket::Curly(Is::Open)),
-            '}' => Some(Bracket::Curly(Is::Closed)),
-            '\"' => Some(Bracket::DoubleQuote),
-            '\'' => Some(Bracket::SingleQuote),
-            '`' => Some(Bracket::BackQuote),
-            _ => None,
+            _ => None
         };
 
         // returns none if the current token hasn't matched anything yet
-        return Some(Token::Wall(bracket?));
+        return self.parse_grouping(bracket?);
+    }
+
+    pub fn pull(&mut self) -> Vec<Token> {
+        let mut tokens = vec![];
+        while let Some(token) = self.parse_next() {
+            tokens.push(token);
+        }
+        println!("{:#?}", tokens);
+        return tokens;
     }
 
     pub fn done(&self) -> bool {
         self.index == self.size
-    }
-
-    pub fn push(&mut self, amount: isize) {
-        if amount < 0 {
-            let abs = amount.abs() as usize;
-            if abs > self.index {
-                self.index = 0
-            } else {
-                self.index -= abs;
-            }
-        } else {
-            self.index += amount as usize;
-        }
     }
 }

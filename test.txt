@@ -1,8 +1,1 @@
 let fib(n: [0,]) =
-    0 when n == 0,
-    1 when n <= 2,
-    fib(n - 1) + fib(n - 2)
-
-let age = 7 + (
-    3
-)

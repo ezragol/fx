@@ -6,15 +6,21 @@ use std::{
 use crate::{ast::*, errors::*, lexer::*};
 
 pub struct Parser {
-    lexer: Interpreter,
     ast: Vec<Expr>,
+    tokens: Vec<Token>,
+    index: usize,
 }
 
 impl Parser {
     pub fn new(src: &str) -> io::Result<Parser> {
         let file = BufReader::new(File::open(src)?);
-        let lexer = Interpreter::new(file)?;
-        Ok(Parser { lexer, ast: vec![] })
+        let mut lexer = Interpreter::new(file)?;
+
+        Ok(Parser {
+            ast: vec![],
+            tokens: lexer.pull(),
+            index: 0,
+        })
     }
 
     fn basic_op_prec(symbol: Symbol) -> Option<usize> {
@@ -44,11 +50,13 @@ impl Parser {
     }
 
     fn next_token(&mut self) -> Result<Token> {
-        let next = self.lexer.parse_next();
-        if let Some(token) = next {
-            return Ok(token);
+        if self.index >= self.tokens.len() {
+            Err(EofError.into())
+        } else {
+            let next = self.tokens[self.index].clone();
+            self.forward();
+            Ok(next)
         }
-        Err(EofError.into())
     }
 
     fn expect_num(&mut self) -> Result<NumberLiteral> {
@@ -78,14 +86,14 @@ impl Parser {
         if let Ok(start) = self.expect_num() {
             min = start;
         } else {
-            self.lexer.push(-1);
+            self.back();
         }
 
         if let Token::Operation(Symbol::Comma) = self.next_token()? {
             if let Ok(end) = self.expect_num() {
                 return Ok(Range::new(Box::new(min), Box::new(end)));
             } else {
-                self.lexer.push(-1);
+                self.back();
                 if let Token::Wall(Bracket::Square(Is::Closed)) = self.next_token()? {
                     return Ok(Range::new(Box::new(min), Box::new(max)));
                 }
@@ -98,9 +106,9 @@ impl Parser {
         let identifier = self.expect_identifier()?;
         let next = self.next_token()?;
         match next {
-            Token::Wall(Bracket::Parens(Is::Open)) => Ok(Box::new(FunctionDefinition::new(
+            Token::Grouping(args) => Ok(Box::new(FunctionDefinition::new(
                 identifier,
-                self.parse_args()?,
+                self.parse_args(args)?,
                 self.parse_block(true)?,
             ))),
             Token::Operation(Symbol::Equals) => Ok(Box::new(VariableDefinition::new(
@@ -111,47 +119,115 @@ impl Parser {
         }
     }
 
-    fn read_tokens(&mut self) -> Result<Vec<Token>> {
-        let mut tokens = vec![];
+    fn look_ahead(&mut self) -> Result<Token> {
         loop {
-            let maybe_next = self.next_token();
-            if let Ok(next) = maybe_next {
-                if let Token::Newline = next {
-                    self.lexer.push(-3);
-                    let look_behind = self.next_token()?;
-                    match look_behind {
-                        Token::Operation(_)
-                        | Token::Wall(Bracket::Parens(Is::Open))
-                        | Token::Wall(Bracket::Square(Is::Open)) => {
-                            self.lexer.push(2);
-                        }
-                        _ => {
-                            self.lexer.push(1);
-                            let look_ahead = self.next_token()?;
-                            match look_ahead {
-                                Token::Operation(_)
-                                | Token::Wall(Bracket::Parens(Is::Closed))
-                                | Token::Wall(Bracket::Square(Is::Closed)) => {
-                                    self.lexer.push(-1);
-                                }
-                                _ => {
-                                    tokens.push(next);
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    tokens.push(next);
+            let token = self.next_token()?;
+            match token {
+                Token::Newline => {}
+                _ => {
+                    return Ok(token);
                 }
-            } else {
-                return Ok(tokens);
             }
         }
     }
 
+    fn look_behind(&mut self) -> Result<Token> {
+        loop {
+            self.push(-2);
+            let token = self.next_token()?;
+            match token {
+                Token::Newline => {}
+                _ => {
+                    self.forward();
+                    return Ok(token);
+                }
+            }
+        }
+    }
+
+    fn ahead_is_trailing(&mut self) -> Option<Token> {
+        if let Ok(ahead) = self.look_ahead() {
+            self.back();
+            match ahead {
+                Token::Operation(_) => Some(ahead),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    }
+
+    fn behind_is_leading(&mut self) -> Option<Token> {
+        if let Ok(behind) = self.look_behind() {
+            match behind {
+                Token::Operation(_) => Some(behind),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    }
+
+    fn push(&mut self, amount: isize) {
+        if amount < 0 {
+            let abs = amount.abs() as usize;
+            if abs > self.index {
+                self.index = 0
+            } else {
+                self.index -= abs;
+            }
+        } else {
+            self.index += amount as usize;
+        }
+    }
+
+    fn back(&mut self) {
+        self.push(-1);
+    }
+
+    fn forward(&mut self) {
+        self.push(1);
+    }
+
+    fn read_expr_tokens(&mut self) -> Result<Vec<Token>> {
+        let mut tokens = vec![];
+        loop {
+            if let Ok(token) = self.next_token() {
+                match token {
+                    Token::Newline => {
+                        if let Ok(Token::Let) = self.next_token() {
+                            self.back();
+                            break;
+                        }
+                    }
+                    Token::Identifier(_) | Token::Number(_, _) | Token::Grouping(_) => {
+                        if let Some(behind) = self.behind_is_leading() {
+                            tokens.push(behind);
+                        } else {
+                            return Err(IdentifierError.into());
+                        }
+                        tokens.push(token);
+                        if let Some(ahead) = self.ahead_is_trailing() {
+                            tokens.push(ahead);
+                            self.forward();
+                        } else {
+                            break;
+                        }
+                    }
+                    _ => {
+                        break;
+                    }
+                }
+            } else {
+                break;
+            }
+        }
+        return Ok(tokens);
+    }
+
     fn parse_expression(&mut self) -> Result<Expr> {
-        let mut tokens = self.read_tokens()?;
-        println!("{:?}", tokens);
+        let mut tokens = self.read_expr_tokens()?;
+        // println!("{:?}", tokens);
         Ok(Box::new(NumberLiteral::new(false, 0, 0.0)))
     }
 
@@ -162,43 +238,21 @@ impl Parser {
         Err(UnexpectedTokenError::new(Symbol::Equals).into())
     }
 
-    // parse arguments and consume closing parentheses
-    fn parse_args(&mut self) -> Result<Vec<(String, Option<Expr>)>> {
-        let mut args = vec![];
+    fn parse_args(&mut self, args: Vec<Token>) -> Result<Vec<(String, Option<Expr>)>> {
+        let mut arg_tree = vec![];
         while let Ok(identifier) = self.expect_identifier() {
-            match self.next_token()? {
-                Token::Wall(Bracket::Parens(Is::Closed)) => {
-                    args.push((identifier, None));
-                    return Ok(args);
-                }
-                Token::Operation(Symbol::Comma) => {
-                    args.push((identifier, None));
-                }
-                Token::Operation(Symbol::Colon) => {
-                    match self.next_token()? {
-                        Token::Wall(Bracket::Square(Is::Open)) => {
-                            args.push((identifier, Some(Box::new(self.parse_range()?))));
-                            if let Token::Wall(Bracket::Parens(Is::Closed)) = self.next_token()? {
-                                return Ok(args);
-                            } else {
-                                self.lexer.push(1);
-                            }
-                        }
-                        Token::Identifier(id) => {
-                            // todo
-                            self.lexer.parse_next();
-                        }
-                        _ => {
-                            return Err(IdentifierError.into());
-                        }
+            if let Ok(next) = self.next_token() {
+                match next {
+                    Token::Operation(Symbol::Comma) => {
+                        self.forward();
                     }
-                }
-                _ => {
-                    return Err(UnexpectedTokenError::new(Symbol::Comma).into());
+                    Token::Operation(Symbol::Colon) => {
+                        
+                    }
                 }
             }
         }
-        Err(EofError.into())
+        Err(IdentifierError.into())
     }
 
     pub fn run(&mut self) {
@@ -208,9 +262,6 @@ impl Parser {
 
         loop {
             if next.is_none() && !first {
-                if !self.lexer.done() {
-                    panic!("Unknown symbol!");
-                }
                 break;
             } else if !first {
                 if let Token::Let = next.clone().unwrap() {
@@ -226,8 +277,13 @@ impl Parser {
             }
 
             first = false;
-            next = self.lexer.parse_next();
+            if let Ok(token) = self.next_token() {
+                next = Some(token);
+            } else {
+                next = None;
+            }
         }
+
         println!("{:#?}", tree);
     }
 }
