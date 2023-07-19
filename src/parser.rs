@@ -23,6 +23,13 @@ impl Parser {
         })
     }
 
+    pub fn from_tree(tokens: Vec<Token>) -> Parser {
+        Parser {
+            ast: vec![],
+            tokens, index: 0
+        }
+    }
+
     fn basic_op_prec(symbol: Symbol) -> Option<usize> {
         match symbol {
             Symbol::ToPower => Some(0),
@@ -60,7 +67,7 @@ impl Parser {
     }
 
     fn expect_num(&mut self) -> Result<NumberLiteral> {
-        let token = self.next_token()?;
+        let token = self.look_ahead()?;
         if let Token::Number(int, float) = token {
             return Ok(NumberLiteral::new(
                 float.is_some(),
@@ -72,7 +79,7 @@ impl Parser {
     }
 
     fn expect_identifier(&mut self) -> Result<String> {
-        let token = self.next_token()?;
+        let token = self.look_ahead()?;
         if let Token::Identifier(identifier) = token {
             return Ok(identifier);
         }
@@ -232,22 +239,32 @@ impl Parser {
     }
 
     fn parse_block(&mut self, with_assignment: bool) -> Result<Vec<Expr>> {
-        if let Token::Operation(Symbol::Equals) = self.next_token()? {
+        if let Ok(Token::Operation(Symbol::Equals)) = self.next_token() {
             return Ok(vec![]);
         }
         Err(UnexpectedTokenError::new(Symbol::Equals).into())
     }
 
-    fn parse_args(&mut self, args: Vec<Token>) -> Result<Vec<(String, Option<Expr>)>> {
+    fn parse_args(&mut self, args: Vec<Token>) -> Result<Vec<String>> {
         let mut arg_tree = vec![];
-        while let Ok(identifier) = self.expect_identifier() {
-            if let Ok(next) = self.next_token() {
+        let mut a = Parser::from_tree(args);
+        // consume opening parentheses
+        a.forward();
+        while let Ok(identifier) = a.expect_identifier() {
+            if let Ok(next) = a.next_token() {
                 match next {
                     Token::Operation(Symbol::Comma) => {
-                        self.forward();
+                        arg_tree.push(identifier);
+                    },
+                    Token::Wall(Bracket::Parens(Is::Closed)) => {
+                        arg_tree.push(identifier);
+                        return Ok(arg_tree);
                     }
-                    Token::Operation(Symbol::Colon) => {
-                        
+                    // type annotations go here
+                    // Token::Operation(Symbol::Colon) => {}
+                    // n: [0,]
+                    _ => {
+                        break;
                     }
                 }
             }

@@ -223,7 +223,6 @@ impl Interpreter {
         while let Some(token) = self.parse_next() {
             tokens.push(token);
         }
-        println!("{:#?}", tokens);
         return tokens;
     }
 

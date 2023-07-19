@@ -1,1 +1,2 @@
-let fib(n: [0,]) =
+let fib[n, z,
+y) =

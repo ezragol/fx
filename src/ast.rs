@@ -18,7 +18,7 @@ pub struct VariableDefinition {
 #[derive(Debug)]
 pub struct FunctionDefinition {
     name: String,
-    args: Vec<(String, Option<Expr>)>,
+    args: Vec<String>,
     body: Vec<Expr>,
 }
 
@@ -78,7 +78,7 @@ impl VariableDefinition {
 impl FunctionDefinition {
     pub fn new(
         name: String,
-        args: Vec<(String, Option<Expr>)>,
+        args: Vec<String>,
         body: Vec<Expr>,
     ) -> FunctionDefinition {
         FunctionDefinition { name, args, body }
