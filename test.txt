@@ -1,2 +1,5 @@
-let fib[n, z,
-y) =
+let fib(n) = 
+    1 when n <= 1,
+    fib(n - 1) + fib(n - 2)
+
+let name = 4

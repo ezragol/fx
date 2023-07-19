@@ -3,6 +3,15 @@ mod lexer;
 mod parser;
 mod errors;
 
+#[macro_export]
+macro_rules! err {
+    ($($t:tt)*) => {{
+        eprintln!($($t)*);
+        std::process::exit(1);
+    }};
+}
+
+
 #[cfg(test)]
 mod test;
 

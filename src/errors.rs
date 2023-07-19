@@ -1,64 +1,24 @@
-use std::{fmt, error::Error};
+use std::{error::Error, fmt};
 
 pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
-#[derive(Debug, Clone)]
-pub struct DeclarationError;
+macro_rules! def {
+    ($name:ident, $error:expr) => {
+        #[derive(Debug, Clone)]
+        pub struct $name;
+        impl Error for $name {}
 
-#[derive(Debug, Clone)]
-pub struct RangeError;
-
-#[derive(Debug, Clone)]
-pub struct EofError;
-
-#[derive(Debug, Clone)]
-pub struct IdentifierError;
-
-#[derive(Debug, Clone)]
-pub struct UnexpectedTokenError<T> {
-    expected: T,
+        impl fmt::Display for $name {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                write!(f, $error)
+            }
+        }
+    };
 }
 
-impl <T> UnexpectedTokenError<T> {
-    pub fn new(expected: T) -> UnexpectedTokenError<T> {
-        UnexpectedTokenError { expected }
-    }
-}
-
-impl fmt::Display for DeclarationError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "expected declaration!")
-    }
-}
-
-impl fmt::Display for RangeError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "improperly formatted range!")
-    }
-}
-
-impl fmt::Display for EofError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "unexpected end of file!")
-    }
-}
-
-impl fmt::Display for IdentifierError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "expected identifier!")
-    }
-}
-
-impl <T> fmt::Display for UnexpectedTokenError<T>
-    where T: fmt::Debug {
-
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "expected {:?}!", self.expected)
-    }
-}
-
-impl Error for DeclarationError {}
-impl Error for RangeError {} 
-impl Error for EofError {}
-impl Error for IdentifierError {}
-impl <T: fmt::Debug> Error for UnexpectedTokenError<T> {}
+def!(DeclarationError, "expected declaration!");
+def!(RangeError, "improperly formatted range!");
+def!(EofError, "unexpected end of file!");
+def!(IdentifierError, "expected identifier!");
+def!(GroupingError, "improperly formatted grouping!");
+def!(UnknownTokenError, "unknown token!");

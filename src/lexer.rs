@@ -3,8 +3,10 @@ use std::{
     io::{self, BufReader, Read},
 };
 
+use crate::errors::*;
+
 #[repr(C)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Symbol {
     Multiply,
     Divide,
@@ -22,7 +24,7 @@ pub enum Symbol {
 }
 
 #[repr(C)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Bracket {
     Parens(Is),
     Square(Is),
@@ -34,14 +36,14 @@ pub enum Bracket {
 
 // saving time sue me
 #[repr(C)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Is {
     Open,
     Closed,
 }
 
 #[repr(C)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Token {
     Extern,
     Identifier(String),
@@ -51,7 +53,7 @@ pub enum Token {
     Let,
     Wall(Bracket),
     Newline,
-    Grouping(Vec<Token>)
+    Grouping(Vec<Token>),
 }
 
 pub struct Interpreter {
@@ -76,57 +78,65 @@ impl Interpreter {
         })
     }
 
-    fn next(&mut self) -> Option<char> {
-        if self.index < self.size {
+    fn next(&mut self) -> Result<char> {
+        if self.index < self.size -1 {
             let byte = self.bytes[self.index];
             self.index += 1;
-            return Some(byte as char);
+            Ok(byte as char)
+        } else {
+            Err(EofError.into())
         }
-        return None;
     }
 
-    fn parse_grouping(&mut self, bracket: Bracket) -> Option<Token> {
+    fn parse_grouping(&mut self, bracket: Bracket) -> Result<Token> {
         match bracket {
             Bracket::Parens(Is::Closed) | Bracket::Square(Is::Closed) => {
-                return Some(Token::Wall(bracket));
-            },
+                return Ok(Token::Wall(bracket));
+            }
             _ => {}
         }
+
         let mut group = vec![Token::Wall(bracket)];
         loop {
-            let next = self.parse_next();
+            let next = self.parse_next()?;
             match next {
-                Some(Token::Wall(Bracket::Parens(Is::Closed)))
-                | Some(Token::Wall(Bracket::Square(Is::Closed))) => {
-                    group.push(next?);
+                Token::Wall(Bracket::Parens(Is::Closed))
+                | Token::Wall(Bracket::Square(Is::Closed)) => {
+                    group.push(next);
                     break;
                 }
-                Some(Token::Newline) => {}
-                Some(_) => {
-                    group.push(next?);
-                },
-                None => {
-                    break;
+                Token::Newline => {}
+                _ => {
+                    group.push(next);
                 }
             }
         }
-        return Some(Token::Grouping(group));
+
+        let open = group.first().unwrap();
+        let close = group.last().unwrap();
+
+        if let (Token::Wall(o), Token::Wall(c)) = (open, close) {
+            if std::mem::discriminant(o) == std::mem::discriminant(c) {
+                return Ok(Token::Grouping(group));
+            }
+        }
+        return Err(GroupingError.into());
     }
 
-    pub fn parse_next(&mut self) -> Option<Token> {
+    pub fn parse_next(&mut self) -> Result<Token> {
         let mut next = self.next()?;
         let mut identifier = String::new();
 
         while next.is_whitespace() {
             if next == '\n' {
-                loop {
+                'b: loop {
                     next = self.next()?;
                     if next != '\n' {
                         self.index -= 1;
-                        break;
+                        break 'b;
                     }
                 }
-                return Some(Token::Newline);
+                return Ok(Token::Newline);
             }
             next = self.next()?;
         }
@@ -148,7 +158,7 @@ impl Interpreter {
                 i => Token::Identifier(i.to_string()),
             };
 
-            return Some(token);
+            return Ok(token);
         }
 
         let mut num_str = None;
@@ -157,7 +167,7 @@ impl Interpreter {
                 None => Some(String::new()),
                 _ => num_str,
             };
-            num_str.as_mut()?.push(next);
+            num_str.as_mut().unwrap().push(next);
             next = self.next()?;
         }
 
@@ -171,7 +181,7 @@ impl Interpreter {
             } else {
                 int_val = Some(num.parse::<isize>().unwrap());
             }
-            return Some(Token::Number(int_val, float_val));
+            return Ok(Token::Number(int_val, float_val));
         }
 
         if next == '#' {
@@ -203,30 +213,41 @@ impl Interpreter {
         };
 
         if let Some(op) = symbol {
-            return Some(Token::Operation(op));
+            return Ok(Token::Operation(op));
         }
-        
+
         let bracket = match next {
             '(' => Some(Bracket::Parens(Is::Open)),
             '[' => Some(Bracket::Square(Is::Open)),
             ')' => Some(Bracket::Parens(Is::Closed)),
             ']' => Some(Bracket::Square(Is::Closed)),
-            _ => None
+            _ => None,
         };
 
-        // returns none if the current token hasn't matched anything yet
-        return self.parse_grouping(bracket?);
+        if let Some(br) = bracket {
+            self.parse_grouping(br)
+        } else {
+            Err(UnknownTokenError.into())
+        }
     }
 
-    pub fn pull(&mut self) -> Vec<Token> {
+    pub fn pull(&mut self) -> Result<Vec<Token>> {
         let mut tokens = vec![];
-        while let Some(token) = self.parse_next() {
-            tokens.push(token);
+        loop {
+            match self.parse_next() {
+                Ok(token) => tokens.push(token),
+                Err(e) => {
+                    if !self.done() {
+                        return Err(e);
+                    } else {
+                        return Ok(tokens);
+                    }
+                }
+            }
         }
-        return tokens;
     }
 
     pub fn done(&self) -> bool {
-        self.index == self.size
+        self.index == self.size - 1
     }
 }

@@ -3,6 +3,8 @@ use std::{
     io::{self, BufReader},
 };
 
+use crate::err;
+
 use crate::{ast::*, errors::*, lexer::*};
 
 pub struct Parser {
@@ -12,13 +14,13 @@ pub struct Parser {
 }
 
 impl Parser {
-    pub fn new(src: &str) -> io::Result<Parser> {
+    pub fn new(src: &str) -> Result<Parser> {
         let file = BufReader::new(File::open(src)?);
         let mut lexer = Interpreter::new(file)?;
 
         Ok(Parser {
             ast: vec![],
-            tokens: lexer.pull(),
+            tokens: lexer.pull()?,
             index: 0,
         })
     }
@@ -122,7 +124,7 @@ impl Parser {
                 identifier,
                 self.parse_expression()?,
             ))),
-            _ => Err(UnexpectedTokenError::new(Token::Operation(Symbol::Equals)).into()),
+            _ => Err(DeclarationError.into()),
         }
     }
 
@@ -242,7 +244,7 @@ impl Parser {
         if let Ok(Token::Operation(Symbol::Equals)) = self.next_token() {
             return Ok(vec![]);
         }
-        Err(UnexpectedTokenError::new(Symbol::Equals).into())
+        Err(DeclarationError.into())
     }
 
     fn parse_args(&mut self, args: Vec<Token>) -> Result<Vec<String>> {
@@ -284,7 +286,7 @@ impl Parser {
                 if let Token::Let = next.clone().unwrap() {
                     match self.parse_definition() {
                         Err(e) => {
-                            panic!("{}", e);
+                            err!("error: {}", e);
                         }
                         Ok(d) => {
                             tree.push(d);
