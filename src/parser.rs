@@ -33,7 +33,7 @@ impl Parser {
         }
     }
 
-    fn basic_op_prec(symbol: Symbol) -> Option<usize> {
+    fn basic_op_prec(symbol: Symbol) -> Option<u8> {
         match symbol {
             Symbol::ToPower => Some(0),
             Symbol::Multiply => Some(1),
@@ -43,6 +43,7 @@ impl Parser {
             Symbol::LessThan => Some(3),
             Symbol::GreaterThan => Some(3),
             Symbol::Comma => Some(7),
+            Symbol::Equals => Some(8),
             _ => None,
         }
     }
@@ -99,12 +100,12 @@ impl Parser {
             self.back();
         }
 
-        if let Token::Operation(Symbol::Comma) = self.next_token()? {
+        if let Token::Symbol(Symbol::Comma) = self.next_token()? {
             if let Ok(end) = self.expect_num() {
                 return Ok(Range::new(Box::new(min), Box::new(end)));
             } else {
                 self.back();
-                if let Token::Wall(Bracket::Square(Is::Closed)) = self.next_token()? {
+                if let Token::Bracket(Bracket::Square(Is::Closed)) = self.next_token()? {
                     return Ok(Range::new(Box::new(min), Box::new(max)));
                 }
             }
@@ -121,7 +122,7 @@ impl Parser {
                 self.parse_args(args)?,
                 self.parse_expression()?,
             ))),
-            Token::Operation(Symbol::Equals) => {
+            Token::Symbol(Symbol::Equals) => {
                 self.back();
                 Ok(Box::new(VariableDefinition::new(
                     identifier,
@@ -172,7 +173,7 @@ impl Parser {
     fn behind_is_operation(&mut self) -> Option<Token> {
         if let Ok(behind) = self.look_behind() {
             match behind {
-                Token::Operation(_) => Some(behind),
+                Token::Symbol(_) => Some(behind),
                 _ => None,
             }
         } else {
@@ -211,20 +212,22 @@ impl Parser {
                         if let Ok(Token::Let) = next {
                             self.back();
                             break;
-                        } else if let Ok(Token::Operation(_)) = next {
-                            if let None = self.behind_is_expr() {
+                        } else if let Ok(Token::Symbol(_)) = next {
+                            if self.behind_is_expr().is_none() {
                                 break;
                             }
-                        } else if let None = self.behind_is_operation() {
+                        } else if self.behind_is_operation().is_none() {
                             break;
                         }
                     }
-                    Token::Operation(_)
+                    Token::Symbol(_)
                     | Token::Identifier(_)
                     | Token::Number(_, _)
                     | Token::Grouping(_)
                     | Token::When => {
-                        tokens.push(token);
+                        if tokens.len() > 0 || !matches!(token, Token::Symbol(Symbol::Equals)) {
+                            tokens.push(token);
+                        }
                     }
                     _ => {
                         break;
@@ -237,26 +240,87 @@ impl Parser {
         return Ok(tokens);
     }
 
+    fn parse_non_symbol(&mut self, symbol: Token) -> Result<Expr> {
+        match symbol {
+            Token::Identifier(ident) => Ok(Box::new(NumberLiteral::new(false, 0, 0.0))),
+            Token::Number(int, float) => Ok(Box::new(NumberLiteral::new(
+                int.is_none(),
+                int.unwrap_or(0),
+                float.unwrap_or(0.0),
+            ))),
+            Token::Grouping(tokens) => Ok(Box::new(NumberLiteral::new(false, 0, 0.0))),
+            _ => Ok(Box::new(NumberLiteral::new(false, 0, 0.0))),
+        }
+    }
+
     fn parse_expression(&mut self) -> Result<Expr> {
-        let mut tokens = self.read_expr_tokens()?;
-        println!("{:#?}", tokens);
-        tokens.pop();
-        for token in tokens {}
-        Ok(Box::new(NumberLiteral::new(false, 0, 0.0)))
+        let tokens = self.read_expr_tokens()?;
+        let mut reader = Parser::from_tree(tokens.clone());
+        let mut op_indexes = vec![];
+        let mut tree = None;
+        let mut last_index = 0;
+
+        loop {
+            let next = reader.next_token();
+            match next {
+                // auto unwrap because otherwise it would not have even been added to token list
+                Ok(Token::Symbol(op)) => {
+                    op_indexes.push((reader.index - 1, Parser::basic_op_prec(op).unwrap()))
+                }
+                Ok(_) => {}
+                Err(_) => {
+                    break;
+                }
+            }
+        }
+
+        op_indexes.sort_by(|a, b| a.1.cmp(&b.1));
+        
+        for (index, prec) in op_indexes {
+            if tree.is_none() {
+                tree = Some(BinaryOperation::new(
+                    prec,
+                    self.parse_non_symbol(tokens[index - 1].clone())?,
+                    self.parse_non_symbol(tokens[index + 1].clone())?,
+                ));
+                last_index = index;
+            } else {
+                if last_index < index {
+                    tree = Some(BinaryOperation::new(
+                        prec,
+                        Box::new(tree.unwrap()),
+                        self.parse_non_symbol(tokens[index + 1].clone())?,
+                    ));
+                } else {
+                    tree = Some(BinaryOperation::new(
+                        prec,
+                        self.parse_non_symbol(tokens[index - 1].clone())?,
+                        Box::new(tree.unwrap()),
+                    ));
+                }
+                last_index = index;
+            }
+        }
+
+        if tree.is_none() {
+            return Ok(self.parse_non_symbol(tokens[0].clone())?);
+        }
+
+        Ok(Box::new(tree.unwrap()))
     }
 
     fn parse_args(&mut self, args: Vec<Token>) -> Result<Vec<String>> {
         let mut arg_tree = vec![];
-        let mut a = Parser::from_tree(args);
-        a.forward();
+        let mut p = Parser::from_tree(args);
+        p.forward();
 
-        while let Ok(identifier) = a.expect_identifier() {
-            if let Ok(next) = a.next_token() {
+        while let Ok(identifier) = p.expect_identifier() {
+            if let Ok(next) = p.next_token() {
                 match next {
-                    Token::Operation(Symbol::Comma) => {
+                    Token::Symbol(Symbol::Comma) => {
                         arg_tree.push(identifier);
                     }
-                    Token::Wall(Bracket::Parens(Is::Closed)) => {
+                    Token::Bracket(Bracket::Parens(Is::Closed)) => {
                         arg_tree.push(identifier);
                         return Ok(arg_tree);
                     }

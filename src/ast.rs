@@ -69,11 +69,7 @@ impl VariableDefinition {
 }
 
 impl FunctionDefinition {
-    pub fn new(
-        name: String,
-        args: Vec<String>,
-        body: Expr,
-    ) -> FunctionDefinition {
+    pub fn new(name: String, args: Vec<String>, body: Expr) -> FunctionDefinition {
         FunctionDefinition { name, args, body }
     }
 }
@@ -84,7 +80,14 @@ impl Range {
     }
 }
 
+impl BinaryOperation {
+    pub fn new(op: u8, left: Expr, right: Expr) -> BinaryOperation {
+        BinaryOperation { op, left, right }
+    }
+}
+
 impl Expression for NumberLiteral {}
 impl Expression for Range {}
 impl Expression for VariableDefinition {}
 impl Expression for FunctionDefinition {}
+impl Expression for BinaryOperation {}

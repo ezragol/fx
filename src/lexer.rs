@@ -51,9 +51,9 @@ pub enum Token {
     Identifier(String),
     Number(Option<isize>, Option<f64>),
     When,
-    Operation(Symbol),
+    Symbol(Symbol),
     Let,
-    Wall(Bracket),
+    Bracket(Bracket),
     Newline,
     Grouping(Vec<Token>),
 }
@@ -93,17 +93,17 @@ impl Interpreter {
     fn parse_grouping(&mut self, bracket: Bracket) -> Result<Token> {
         match bracket {
             Bracket::Parens(Is::Closed) | Bracket::Square(Is::Closed) => {
-                return Ok(Token::Wall(bracket));
+                return Ok(Token::Bracket(bracket));
             }
             _ => {}
         }
 
-        let mut group = vec![Token::Wall(bracket)];
+        let mut group = vec![Token::Bracket(bracket)];
         loop {
             let next = self.parse_next()?;
             match next {
-                Token::Wall(Bracket::Parens(Is::Closed))
-                | Token::Wall(Bracket::Square(Is::Closed)) => {
+                Token::Bracket(Bracket::Parens(Is::Closed))
+                | Token::Bracket(Bracket::Square(Is::Closed)) => {
                     group.push(next);
                     break;
                 }
@@ -117,7 +117,7 @@ impl Interpreter {
         let open = group.first().unwrap();
         let close = group.last().unwrap();
 
-        if let (Token::Wall(o), Token::Wall(c)) = (open, close) {
+        if let (Token::Bracket(o), Token::Bracket(c)) = (open, close) {
             if std::mem::discriminant(o) == std::mem::discriminant(c) {
                 return Ok(Token::Grouping(group));
             }
@@ -156,11 +156,11 @@ impl Interpreter {
 
         while next.is_whitespace() {
             if next == '\n' {
-                'b: loop {
+                loop {
                     next = self.next()?;
                     if next != '\n' {
                         self.index -= 1;
-                        break 'b;
+                        break;
                     }
                 }
                 return Ok(Token::Newline);
@@ -229,11 +229,11 @@ impl Interpreter {
         if let Some(op) = symbol {
             if let Ok(another) = self.next() {
                 if let Some(second) = Interpreter::parse_symbol(another) {
-                    return Ok(Token::Operation(Symbol::Compound(op.into(), second.into())));
+                    return Ok(Token::Symbol(Symbol::Compound(op.into(), second.into())));
                 }
                 self.index -= 1;
             }
-            return Ok(Token::Operation(op));
+            return Ok(Token::Symbol(op));
         }
 
         let bracket = match next {

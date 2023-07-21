@@ -1,10 +1,5 @@
-let fib(n) =
-    1 when n <= 1,
-    fib(n - 1) + fib(n - 2)
+# let fib(n) =
+#    1 when n <= 1,
+#    fib(n - 1) + fib(n - 2)
 
-let name = age
-
-name
-            .to_string()
-            .as_str()
-            .unwrap() +
+let name = 3 + 5 * 9
