@@ -1,146 +1,102 @@
-pub trait Expression: std::fmt::Debug {}
+// pub trait Expression: std::fmt::Debug {}
 
-pub type Expr = Box<dyn Expression>;
+use std::ffi::{CString, c_char};
 
-#[derive(Debug)]
-pub struct NumberLiteral {
-    floating: bool,
-    int_val: isize,
-    float_val: f64,
+#[derive(Debug, Clone)]
+pub enum Expr {
+    NumberLiteral(bool, isize, f64),
+    StringLiteral(String),
+    VariableDefinition(String, Box<Expr>),
+    FunctionDefinition(String, Vec<String>, Box<Expr>),
+    ChainExpression(Vec<Expr>),
+    BinaryOperation(u8, Box<Expr>, Box<Expr>),
+    WhenExpression(Box<Expr>, Box<Expr>),
+    FunctionCall(String, Vec<Expr>),
+    VariableRef(String),
 }
 
-#[derive(Debug)]
-pub struct VariableDefinition {
-    name: String,
-    value: Expr,
+fn map_vec<T: Clone, U>(from: Vec<T>, f: fn(T) -> U) -> (*mut U, usize, usize) {
+    let mut converted: Vec<U> = from.clone().into_iter().map(f).collect();
+    let ptr = converted.as_mut_ptr();
+    std::mem::forget(converted);
+    (ptr, from.len(), from.capacity())
 }
 
-#[derive(Debug)]
-pub struct FunctionDefinition {
-    name: String,
-    args: Vec<String>,
-    body: Expr,
+pub fn convert_vec(from: Vec<Expr>) -> (*mut FFISafeExpr, usize, usize) {
+    map_vec(from, |e| convert_expr(e))
 }
 
-#[derive(Debug)]
-pub struct ChainExpression {
-    expressions: Vec<Expr>,
+fn convert_str_vec(from: Vec<String>) -> (*mut *const c_char, usize, usize) {
+    map_vec(from, |s| convert_str(s))
 }
 
-#[derive(Debug)]
-pub struct BinaryOperation {
-    op: u8,
-    left: Expr,
-    right: Expr,
+fn convert_box(from: Box<Expr>) -> *mut FFISafeExpr {
+    Box::into_raw(convert_expr(*from).into())
 }
 
-#[derive(Debug)]
-pub struct WhenExpression {
-    result: Expr,
-    predicate: Expr,
+fn convert_str(from: String) -> *const c_char {
+    let cstr = CString::new(from).unwrap();
+    return cstr.into_raw();
 }
 
-#[derive(Debug)]
-pub struct Range {
-    start: Expr,
-    end: Expr,
-}
-
-#[derive(Debug)]
-pub struct FunctionCall {
-    name: String,
-    args: Vec<Expr>,
-}
-
-#[derive(Debug)]
-pub struct VariableRef {
-    name: String
-}
-
-#[derive(Debug)]
-pub struct StringLiteral {
-    value: String
-}
-
-impl NumberLiteral {
-    pub fn new(floating: bool, int_val: isize, float_val: f64) -> NumberLiteral {
-        NumberLiteral {
-            floating,
-            int_val,
-            float_val,
+pub fn convert_expr(expr: Expr) -> FFISafeExpr {
+    match expr {
+        Expr::NumberLiteral(is_f, int, float) => FFISafeExpr::NumberLiteral(is_f, int, float),
+        Expr::StringLiteral(src) => FFISafeExpr::StringLiteral(convert_str(src)),
+        Expr::VariableDefinition(name, value) => {
+            FFISafeExpr::VariableDefinition(convert_str(name), convert_box(value))
         }
+        Expr::FunctionDefinition(name, args, body) => {
+            let arg_vec = convert_str_vec(args);
+            FFISafeExpr::FunctionDefinition(
+                convert_str(name),
+                arg_vec.0,
+                arg_vec.1,
+                arg_vec.2,
+                convert_box(body),
+            )
+        }
+        Expr::ChainExpression(exprs) => {
+            let expr_vec = convert_vec(exprs);
+            FFISafeExpr::ChainExpression(expr_vec.0, expr_vec.1, expr_vec.2)
+        }
+        Expr::BinaryOperation(op, left, right) => {
+            FFISafeExpr::BinaryOperation(op, convert_box(left), convert_box(right))
+        }
+        Expr::WhenExpression(result, predicate) => {
+            FFISafeExpr::WhenExpression(convert_box(result), convert_box(predicate))
+        }
+        Expr::FunctionCall(name, args) => {
+            let arg_vec = convert_vec(args);
+            FFISafeExpr::FunctionCall(convert_str(name), arg_vec.0, arg_vec.1, arg_vec.2)
+        }
+        Expr::VariableRef(name) => FFISafeExpr::VariableRef(convert_str(name)),
     }
 }
 
-impl VariableDefinition {
-    pub fn new(name: String, value: Expr) -> VariableDefinition {
-        VariableDefinition { name, value }
-    }
+#[repr(C)]
+#[derive(Debug)]
+pub enum FFISafeExpr {
+    NumberLiteral(bool, isize, f64),
+    StringLiteral(*const c_char),
+    VariableDefinition(*const c_char, *mut FFISafeExpr),
+    FunctionDefinition(
+        *const c_char,
+        *mut *const c_char,
+        usize,
+        usize,
+        *mut FFISafeExpr,
+    ),
+    ChainExpression(*mut FFISafeExpr, usize, usize),
+    BinaryOperation(u8, *mut FFISafeExpr, *mut FFISafeExpr),
+    WhenExpression(*mut FFISafeExpr, *mut FFISafeExpr),
+    FunctionCall(*const c_char, *mut FFISafeExpr, usize, usize),
+    VariableRef(*const c_char),
 }
 
-impl FunctionDefinition {
-    pub fn new(name: String, args: Vec<String>, body: Expr) -> FunctionDefinition {
-        FunctionDefinition { name, args, body }
-    }
+#[repr(C)]
+pub struct FFISafeExprVec {
+    pub ptr: *mut FFISafeExpr,
+    pub len: usize,
+    pub capacity: usize,
 }
-
-impl FunctionCall {
-    pub fn new(name: String, args: Vec<Expr>) -> FunctionCall {
-        FunctionCall { name, args }
-    }
-}
-
-impl Range {
-    pub fn new(start: Expr, end: Expr) -> Range {
-        Range { start, end }
-    }
-}
-
-impl BinaryOperation {
-    pub fn new(op: u8, left: Expr, right: Expr) -> BinaryOperation {
-        BinaryOperation { op, left, right }
-    }
-
-    pub fn op(&self) -> u8 {
-        self.op
-    }
-
-    pub fn left(&self) -> &Expr {
-        &self.left
-    }
-}
-
-impl VariableRef {
-    pub fn new(name: String) -> VariableRef {
-        VariableRef { name }
-    }
-}
-
-impl WhenExpression {
-    pub fn new(result: Expr, predicate: Expr) -> WhenExpression {
-        WhenExpression { result, predicate }
-    }
-}
-
-impl ChainExpression {
-    pub fn new(expressions: Vec<Expr>) -> ChainExpression {
-        ChainExpression { expressions }
-    }
-}
-
-impl StringLiteral {
-    pub fn new(value: String) -> StringLiteral {
-        StringLiteral { value }
-    }
-}
-
-impl Expression for NumberLiteral {}
-impl Expression for Range {}
-impl Expression for VariableDefinition {}
-impl Expression for FunctionDefinition {}
-impl Expression for BinaryOperation {}
-impl Expression for VariableRef {}
-impl Expression for FunctionCall {}
-impl Expression for WhenExpression {}
-impl Expression for ChainExpression {}
-impl Expression for StringLiteral {}

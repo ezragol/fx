@@ -5,10 +5,11 @@ use std::time;
 fn parser() {
     let now = time::Instant::now();
     let parser = Parser::new("test.txt");
-    match parser {
+    let tree = match parser {
         Ok(mut p) => p.run(),
         Err(e) => err!("{}", e)
-    }
+    };
 
+    println!("{:#?}", tree);
     println!("{:?}", now.elapsed());
 }

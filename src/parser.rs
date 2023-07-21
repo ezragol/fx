@@ -1,7 +1,6 @@
 use std::{
     fs::File,
-    io::{self, BufReader},
-    process::id,
+    io::BufReader,
 };
 
 use crate::err;
@@ -9,7 +8,6 @@ use crate::err;
 use crate::{ast::*, errors::*, lexer::*};
 
 pub struct Parser {
-    ast: Vec<Expr>,
     tokens: Vec<Token>,
     index: usize,
 }
@@ -20,7 +18,6 @@ impl Parser {
         let mut lexer = Interpreter::new(file)?;
 
         Ok(Parser {
-            ast: vec![],
             tokens: lexer.pull()?,
             index: 0,
         })
@@ -28,7 +25,6 @@ impl Parser {
 
     pub fn from_tree(tokens: Vec<Token>) -> Parser {
         Parser {
-            ast: vec![],
             tokens,
             index: 0,
         }
@@ -71,18 +67,6 @@ impl Parser {
         }
     }
 
-    fn expect_num(&mut self) -> Result<NumberLiteral> {
-        let token = self.look_ahead()?;
-        if let Token::Number(int, float) = token {
-            return Ok(NumberLiteral::new(
-                float.is_some(),
-                int.unwrap_or(0),
-                float.unwrap_or(0.0),
-            ));
-        }
-        Err(RangeError.into())
-    }
-
     fn expect_identifier(&mut self) -> Result<String> {
         let token = self.look_ahead()?;
         if let Token::Identifier(identifier) = token {
@@ -103,17 +87,17 @@ impl Parser {
         let identifier = self.expect_identifier()?;
         let next = self.next_token()?;
         match next {
-            Token::Grouping(args) => Ok(Box::new(FunctionDefinition::new(
+            Token::Grouping(args) => Ok(Expr::FunctionDefinition(
                 identifier,
                 Parser::parse_def_args(args)?,
-                self.parse_expr_or_err()?,
-            ))),
+                self.parse_expr_or_err()?.into(),
+            )),
             Token::Symbol(Symbol::Equals) => {
                 self.back();
-                Ok(Box::new(VariableDefinition::new(
+                Ok(Expr::VariableDefinition(
                     identifier,
-                    self.parse_expr_or_err()?,
-                )))
+                    self.parse_expr_or_err()?.into(),
+                ))
             }
             _ => Err(DeclarationError.into()),
         }
@@ -241,22 +225,22 @@ impl Parser {
 
     fn parse_non_symbol(&mut self, symbol: Token) -> Option<Expr> {
         match symbol {
-            Token::Identifier(ident) => Some(Box::new(VariableRef::new(ident))),
-            Token::Number(int, float) => Some(Box::new(NumberLiteral::new(
+            Token::Identifier(ident) => Some(Expr::VariableRef(ident)),
+            Token::Number(int, float) => Some(Expr::NumberLiteral(
                 int.is_none(),
                 int.unwrap_or(0),
                 float.unwrap_or(0.0),
-            ))),
-            Token::String(s) => Some(Box::new(StringLiteral::new(s))),
+            )),
+            Token::String(s) => Some(Expr::StringLiteral(s)),
             Token::Grouping(tokens) => Parser::parse_grouping(tokens, true),
             // fix
-            Token::FunctionCall(name, tokens) => Some(Box::new(
+            Token::FunctionCall(name, tokens) => Some(
                 if let Ok(args) = Parser::parse_chain(tokens, false) {
-                    FunctionCall::new(name, args)
+                    Expr::FunctionCall(name, args)
                 } else {
-                    FunctionCall::new(name, vec![])
+                    Expr::FunctionCall(name, vec![])
                 },
-            )),
+            ),
             _ => None,
         }
     }
@@ -268,24 +252,24 @@ impl Parser {
 
         for (index, prec) in indexes {
             if tree.is_none() {
-                tree = Some(BinaryOperation::new(
+                tree = Some(Expr::BinaryOperation(
                     prec,
-                    self.parse_non_symbol(tokens[index - 1].clone())?,
-                    self.parse_non_symbol(tokens[index + 1].clone())?,
+                    self.parse_non_symbol(tokens[index - 1].clone())?.into(),
+                    self.parse_non_symbol(tokens[index + 1].clone())?.into(),
                 ));
                 last_index = index;
             } else {
                 if last_index < index {
-                    tree = Some(BinaryOperation::new(
+                    tree = Some(Expr::BinaryOperation(
                         prec,
-                        Box::new(tree.unwrap()),
-                        self.parse_non_symbol(tokens[index + 1].clone())?,
+                        tree.unwrap().into(),
+                        self.parse_non_symbol(tokens[index + 1].clone())?.into(),
                     ));
                 } else {
-                    tree = Some(BinaryOperation::new(
+                    tree = Some(Expr::BinaryOperation(
                         prec,
-                        self.parse_non_symbol(tokens[index - 1].clone())?,
-                        Box::new(tree.unwrap()),
+                        self.parse_non_symbol(tokens[index - 1].clone())?.into(),
+                        tree.unwrap().into(),
                     ));
                 }
                 last_index = index;
@@ -296,7 +280,7 @@ impl Parser {
             return Some(self.parse_non_symbol(tokens[0].clone())?);
         }
 
-        Some(Box::new(tree.unwrap()))
+        Some(tree.unwrap())
     }
 
     fn parse_expression(&mut self) -> Option<Expr> {
@@ -307,7 +291,7 @@ impl Parser {
 
         if tokens.contains(&Token::Symbol(Symbol::Comma)) {
             let expressions = Parser::parse_chain(tokens, false).unwrap();
-            return Some(Box::new(ChainExpression::new(expressions)));
+            return Some(Expr::ChainExpression(expressions));
         }
 
         let mut reader = Parser::from_tree(tokens.clone());
@@ -349,10 +333,10 @@ impl Parser {
                 .map(|(index, prec)| (index - when_index - 1, prec))
                 .collect();
 
-            return Some(Box::new(WhenExpression::new(
-                self.branch(tokens[..when_index].to_vec(), left)?,
-                self.branch(tokens[when_index + 1..].to_vec(), right)?,
-            )));
+            return Some(Expr::WhenExpression(
+                self.branch(tokens[..when_index].to_vec(), left)?.into(),
+                self.branch(tokens[when_index + 1..].to_vec(), right)?.into(),
+            ));
         } else {
             self.branch(tokens, op_indexes)
         }
@@ -427,7 +411,7 @@ impl Parser {
         }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> Vec<Expr> {
         let mut next: Option<Token> = None;
         let mut first = true;
         let mut tree: Vec<Expr> = vec![];
@@ -474,6 +458,6 @@ impl Parser {
             }
         }
 
-        println!("{:#?}", tree);
+        return tree;
     }
 }

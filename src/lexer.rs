@@ -3,7 +3,7 @@ use std::{
     io::{self, BufReader, Read},
 };
 
-use crate::{ast::FunctionCall, errors::*};
+use crate::errors::*;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Symbol {
@@ -28,10 +28,6 @@ pub enum Symbol {
 pub enum Bracket {
     Parens(Is),
     Square(Is),
-    Curly(Is),
-    DoubleQuote,
-    SingleQuote,
-    BackQuote,
 }
 
 // saving time sue me
@@ -74,7 +70,7 @@ impl Interpreter {
             bytes,
             index: 0,
             size,
-            inside_string: false
+            inside_string: false,
         })
     }
 
@@ -270,8 +266,10 @@ impl Interpreter {
                     if let Some(Token::Identifier(name)) = last.clone() {
                         if !matches!(double_last, Some(Token::Let)) {
                             comp.pop();
-                            comp.push(Token::FunctionCall(name, 
-                                Interpreter::compress_fn_calls(args[1..args.len() - 1].to_vec())));
+                            comp.push(Token::FunctionCall(
+                                name,
+                                Interpreter::compress_fn_calls(args[1..args.len() - 1].to_vec()),
+                            ));
                             continue;
                         }
                     }
@@ -283,7 +281,7 @@ impl Interpreter {
                     comp.push(token);
                 }
             }
-        };
+        }
 
         return comp;
     }
