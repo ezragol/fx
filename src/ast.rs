@@ -57,6 +57,11 @@ pub struct VariableRef {
     name: String
 }
 
+#[derive(Debug)]
+pub struct StringLiteral {
+    value: String
+}
+
 impl NumberLiteral {
     pub fn new(floating: bool, int_val: isize, float_val: f64) -> NumberLiteral {
         NumberLiteral {
@@ -123,6 +128,12 @@ impl ChainExpression {
     }
 }
 
+impl StringLiteral {
+    pub fn new(value: String) -> StringLiteral {
+        StringLiteral { value }
+    }
+}
+
 impl Expression for NumberLiteral {}
 impl Expression for Range {}
 impl Expression for VariableDefinition {}
@@ -132,3 +143,4 @@ impl Expression for VariableRef {}
 impl Expression for FunctionCall {}
 impl Expression for WhenExpression {}
 impl Expression for ChainExpression {}
+impl Expression for StringLiteral {}

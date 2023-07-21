@@ -91,29 +91,6 @@ impl Parser {
         Err(IdentifierError.into())
     }
 
-    fn parse_range(&mut self) -> Result<Range> {
-        let mut min = NumberLiteral::new(false, std::isize::MIN, 0.0);
-        let max = NumberLiteral::new(false, std::isize::MAX, 0.0);
-
-        if let Ok(start) = self.expect_num() {
-            min = start;
-        } else {
-            self.back();
-        }
-
-        if let Token::Symbol(Symbol::Comma) = self.next_token()? {
-            if let Ok(end) = self.expect_num() {
-                return Ok(Range::new(Box::new(min), Box::new(end)));
-            } else {
-                self.back();
-                if let Token::Bracket(Bracket::Square(Is::Closed)) = self.next_token()? {
-                    return Ok(Range::new(Box::new(min), Box::new(max)));
-                }
-            }
-        }
-        Err(RangeError.into())
-    }
-
     fn parse_expr_or_err(&mut self) -> Result<Expr> {
         if let Some(expr) = self.parse_expression() {
             Ok(expr)
@@ -234,6 +211,7 @@ impl Parser {
                     | Token::Number(_, _)
                     | Token::Grouping(_)
                     | Token::When
+                    | Token::String(_)
                     | Token::FunctionCall(_, _) => {
                         if tokens.len() > 0 || !matches!(token, Token::Symbol(Symbol::Equals)) {
                             tokens.push(token);
@@ -269,6 +247,7 @@ impl Parser {
                 int.unwrap_or(0),
                 float.unwrap_or(0.0),
             ))),
+            Token::String(s) => Some(Box::new(StringLiteral::new(s))),
             Token::Grouping(tokens) => Parser::parse_grouping(tokens, true),
             // fix
             Token::FunctionCall(name, tokens) => Some(Box::new(
@@ -468,7 +447,10 @@ impl Parser {
                     }
                 } else {
                     match next.unwrap() {
-                        Token::Identifier(_) | Token::Extern | Token::Grouping(_) | Token::FunctionCall(_, _) => {
+                        Token::Identifier(_)
+                        | Token::Extern
+                        | Token::Grouping(_)
+                        | Token::FunctionCall(_, _) => {
                             self.back();
                             match self.parse_expr_or_err() {
                                 Err(e) => {

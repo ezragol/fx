@@ -52,6 +52,7 @@ pub enum Token {
     Bracket(Bracket),
     Newline,
     Grouping(Vec<Token>),
+    String(String),
     FunctionCall(String, Vec<Token>),
 }
 
@@ -59,6 +60,7 @@ pub struct Interpreter {
     bytes: Vec<u8>,
     index: usize,
     size: usize,
+    inside_string: bool,
 }
 
 impl Interpreter {
@@ -72,6 +74,7 @@ impl Interpreter {
             bytes,
             index: 0,
             size,
+            inside_string: false
         })
     }
 
@@ -149,7 +152,7 @@ impl Interpreter {
         let mut next = self.next()?;
         let mut identifier = String::new();
 
-        while next.is_whitespace() {
+        while next.is_whitespace() && !self.inside_string {
             if next == '\n' {
                 loop {
                     next = self.next()?;
@@ -161,6 +164,16 @@ impl Interpreter {
                 return Ok(Token::Newline);
             }
             next = self.next()?;
+        }
+
+        if next == '\"' {
+            let mut next_char = self.next()?;
+            let mut full_string = String::new();
+            while next_char != '\"' {
+                full_string.push(next_char);
+                next_char = self.next()?;
+            }
+            return Ok(Token::String(full_string));
         }
 
         if Interpreter::ident(next) {
