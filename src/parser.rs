@@ -242,13 +242,17 @@ impl Parser {
 
     fn parse_non_symbol(&mut self, symbol: Token) -> Result<Expr> {
         match symbol {
-            Token::Identifier(ident) => Ok(Box::new(NumberLiteral::new(false, 0, 0.0))),
+            Token::Identifier(ident) => Ok(Box::new(VariableRef::new(ident))),
             Token::Number(int, float) => Ok(Box::new(NumberLiteral::new(
                 int.is_none(),
                 int.unwrap_or(0),
                 float.unwrap_or(0.0),
             ))),
-            Token::Grouping(tokens) => Ok(Box::new(NumberLiteral::new(false, 0, 0.0))),
+            Token::Grouping(mut tokens) => {
+                tokens.pop();
+                let mut parser = Parser::from_tree(tokens[1..].to_vec());
+                Ok(parser.parse_expression()?)
+            },
             _ => Ok(Box::new(NumberLiteral::new(false, 0, 0.0))),
         }
     }

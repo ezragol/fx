@@ -52,6 +52,11 @@ pub struct FunctionCall {
     args: Vec<Expr>,
 }
 
+#[derive(Debug)]
+pub struct VariableRef {
+    name: String
+}
+
 impl NumberLiteral {
     pub fn new(floating: bool, int_val: isize, float_val: f64) -> NumberLiteral {
         NumberLiteral {
@@ -86,8 +91,15 @@ impl BinaryOperation {
     }
 }
 
+impl VariableRef {
+    pub fn new(name: String) -> VariableRef {
+        VariableRef { name }
+    }
+}
+
 impl Expression for NumberLiteral {}
 impl Expression for Range {}
 impl Expression for VariableDefinition {}
 impl Expression for FunctionDefinition {}
 impl Expression for BinaryOperation {}
+impl Expression for VariableRef {}
