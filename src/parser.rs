@@ -1,6 +1,7 @@
 use std::{
     fs::File,
     io::{self, BufReader},
+    process::id,
 };
 
 use crate::err;
@@ -48,14 +49,14 @@ impl Parser {
         }
     }
 
-    fn compound_op_prec(symbols: (Symbol, Symbol)) -> Option<usize> {
+    fn compound_op_prec(symbols: (Symbol, Symbol)) -> Option<u8> {
         match symbols {
-            (Symbol::LessThan, Symbol::Equals) => Some(0),
-            (Symbol::GreaterThan, Symbol::Equals) => Some(1),
-            (Symbol::Equals, Symbol::Equals) => Some(2),
-            (Symbol::Negate, Symbol::Equals) => Some(3),
-            (Symbol::Ampersand, Symbol::Ampersand) => Some(4),
-            (Symbol::Pipe, Symbol::Pipe) => Some(5),
+            (Symbol::LessThan, Symbol::Equals) => Some(9),
+            (Symbol::GreaterThan, Symbol::Equals) => Some(10),
+            (Symbol::Equals, Symbol::Equals) => Some(11),
+            (Symbol::Negate, Symbol::Equals) => Some(12),
+            (Symbol::Ampersand, Symbol::Ampersand) => Some(13),
+            (Symbol::Pipe, Symbol::Pipe) => Some(14),
             _ => None,
         }
     }
@@ -271,7 +272,7 @@ impl Parser {
             Token::Grouping(tokens) => Parser::parse_grouping(tokens, true),
             // fix
             Token::FunctionCall(name, tokens) => Some(Box::new(
-                if let Ok(args) = Parser::parse_call_args(tokens) {
+                if let Ok(args) = Parser::parse_chain(tokens, false) {
                     FunctionCall::new(name, args)
                 } else {
                     FunctionCall::new(name, vec![])
@@ -281,34 +282,12 @@ impl Parser {
         }
     }
 
-    fn parse_expression(&mut self) -> Option<Expr> {
-        let tokens = self.read_expr_tokens();
-        if tokens.len() == 0 {
-            return None;
-        }
-
-        let mut reader = Parser::from_tree(tokens.clone());
-        let mut op_indexes = vec![];
-        let mut tree = None;
+    fn branch(&mut self, tokens: Vec<Token>, mut indexes: Vec<(usize, u8)>) -> Option<Expr> {
         let mut last_index = 0;
+        let mut tree = None;
+        indexes.sort_by(|a, b| a.1.cmp(&b.1));
 
-        loop {
-            let next = reader.next_token();
-            match next {
-                // auto unwrap because otherwise it would not have even been added to token list
-                Ok(Token::Symbol(op)) => {
-                    op_indexes.push((reader.index - 1, Parser::basic_op_prec(op).unwrap()))
-                }
-                Ok(_) => {}
-                Err(_) => {
-                    break;
-                }
-            }
-        }
-
-        op_indexes.sort_by(|a, b| a.1.cmp(&b.1));
-
-        for (index, prec) in op_indexes {
+        for (index, prec) in indexes {
             if tree.is_none() {
                 tree = Some(BinaryOperation::new(
                     prec,
@@ -341,9 +320,68 @@ impl Parser {
         Some(Box::new(tree.unwrap()))
     }
 
+    fn parse_expression(&mut self) -> Option<Expr> {
+        let tokens = self.read_expr_tokens();
+        if tokens.len() == 0 {
+            return None;
+        }
+
+        if tokens.contains(&Token::Symbol(Symbol::Comma)) {
+            let expressions = Parser::parse_chain(tokens, false).unwrap();
+            return Some(Box::new(ChainExpression::new(expressions)));
+        }
+
+        let mut reader = Parser::from_tree(tokens.clone());
+        let mut op_indexes = vec![];
+        let mut when_index = 0;
+
+        loop {
+            let next = reader.next_token();
+            match next {
+                Ok(Token::When) => {
+                    when_index = reader.index - 1;
+                }
+                Ok(Token::Symbol(Symbol::Compound(first, second))) => {
+                    op_indexes.push((
+                        reader.index - 1,
+                        Parser::compound_op_prec((*first, *second)).unwrap(),
+                    ));
+                }
+                // auto unwrap because otherwise it would not have even been added to token list
+                Ok(Token::Symbol(op)) => {
+                    op_indexes.push((reader.index - 1, Parser::basic_op_prec(op).unwrap()))
+                }
+                Ok(_) => {}
+                Err(_) => {
+                    break;
+                }
+            }
+        }
+
+        if when_index > 0 {
+            let left: Vec<(usize, u8)> = op_indexes
+                .clone()
+                .into_iter()
+                .filter(|(index, _)| index < &when_index)
+                .collect();
+            let right: Vec<(usize, u8)> = op_indexes
+                .into_iter()
+                .filter(|(index, _)| index > &when_index)
+                .map(|(index, prec)| (index - when_index - 1, prec))
+                .collect();
+
+            return Some(Box::new(WhenExpression::new(
+                self.branch(tokens[..when_index].to_vec(), left)?,
+                self.branch(tokens[when_index + 1..].to_vec(), right)?,
+            )));
+        } else {
+            self.branch(tokens, op_indexes)
+        }
+    }
+
     fn parse_def_args(args: Vec<Token>) -> Result<Vec<String>> {
         let mut arg_tree = vec![];
-        let mut p = Parser::from_tree(args);
+        let mut p = Parser::from_tree(args.clone());
 
         p.forward();
         while let Ok(identifier) = p.expect_identifier() {
@@ -368,21 +406,28 @@ impl Parser {
         return Err(IdentifierError.into());
     }
 
-    fn parse_call_args(args: Vec<Token>) -> Result<Vec<Expr>> {
+    fn parse_one_of_chain(current_group: Vec<Token>) -> Result<Expr> {
+        if let Some(parsed) = Parser::parse_grouping(current_group.clone(), false) {
+            Ok(parsed)
+        } else {
+            Err(BadCommaError.into())
+        }
+    }
+
+    fn parse_chain(args: Vec<Token>, is_arg: bool) -> Result<Vec<Expr>> {
         let mut arg_tree = vec![];
         let mut p = Parser::from_tree(args);
         let mut current_group = vec![];
-        p.forward();
+        if is_arg {
+            p.forward();
+        }
 
         while let Ok(next) = p.next_token() {
             match next {
                 Token::Symbol(Symbol::Comma) | Token::Bracket(Bracket::Parens(Is::Closed)) => {
-                    if let Some(parsed) = Parser::parse_grouping(current_group.clone(), false) {
-                        arg_tree.push(parsed);
-                        current_group = vec![];
-                    } else {
-                        break;
-                    }
+                    let parsed = Parser::parse_one_of_chain(current_group)?;
+                    arg_tree.push(parsed);
+                    current_group = vec![];
 
                     // really fucking interesting
                     if let Token::Bracket(Bracket::Parens(Is::Closed)) = next {
@@ -394,7 +439,13 @@ impl Parser {
                 }
             }
         }
-        return Err(BadCommaError.into());
+
+        if is_arg {
+            Err(BadCommaError.into())
+        } else {
+            arg_tree.push(Parser::parse_one_of_chain(current_group)?);
+            Ok(arg_tree)
+        }
     }
 
     pub fn run(&mut self) {
@@ -417,7 +468,7 @@ impl Parser {
                     }
                 } else {
                     match next.unwrap() {
-                        Token::Identifier(_) | Token::Extern | Token::Grouping(_) => {
+                        Token::Identifier(_) | Token::Extern | Token::Grouping(_) | Token::FunctionCall(_, _) => {
                             self.back();
                             match self.parse_expr_or_err() {
                                 Err(e) => {

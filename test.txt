@@ -1,5 +1,5 @@
-# let fib(n) =
-#    1 when n <= 1,
-#    fib(n - 1) + fib(n - 2)
+let fib(n) =
+    1 when n <= 1,
+    fib(n - 1) + fib(n - 2)
 
-let name = fib(n - 1) + fib(n - 2)
+print(fib(10))

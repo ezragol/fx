@@ -37,7 +37,7 @@ pub struct BinaryOperation {
 #[derive(Debug)]
 pub struct WhenExpression {
     result: Expr,
-    predicate: BinaryOperation,
+    predicate: Expr,
 }
 
 #[derive(Debug)]
@@ -111,6 +111,18 @@ impl VariableRef {
     }
 }
 
+impl WhenExpression {
+    pub fn new(result: Expr, predicate: Expr) -> WhenExpression {
+        WhenExpression { result, predicate }
+    }
+}
+
+impl ChainExpression {
+    pub fn new(expressions: Vec<Expr>) -> ChainExpression {
+        ChainExpression { expressions }
+    }
+}
+
 impl Expression for NumberLiteral {}
 impl Expression for Range {}
 impl Expression for VariableDefinition {}
@@ -118,3 +130,5 @@ impl Expression for FunctionDefinition {}
 impl Expression for BinaryOperation {}
 impl Expression for VariableRef {}
 impl Expression for FunctionCall {}
+impl Expression for WhenExpression {}
+impl Expression for ChainExpression {}

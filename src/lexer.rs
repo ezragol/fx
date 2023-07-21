@@ -3,9 +3,8 @@ use std::{
     io::{self, BufReader, Read},
 };
 
-use crate::{errors::*, ast::FunctionCall};
+use crate::{ast::FunctionCall, errors::*};
 
-#[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Symbol {
     Multiply,
@@ -25,7 +24,6 @@ pub enum Symbol {
     Compound(Box<Symbol>, Box<Symbol>),
 }
 
-#[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Bracket {
     Parens(Is),
@@ -37,14 +35,12 @@ pub enum Bracket {
 }
 
 // saving time sue me
-#[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Is {
     Open,
     Closed,
 }
 
-#[repr(C)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
     Extern,
@@ -56,7 +52,7 @@ pub enum Token {
     Bracket(Bracket),
     Newline,
     Grouping(Vec<Token>),
-    FunctionCall(String, Vec<Token>)
+    FunctionCall(String, Vec<Token>),
 }
 
 pub struct Interpreter {
@@ -64,8 +60,6 @@ pub struct Interpreter {
     index: usize,
     size: usize,
 }
-
-// DEAL with newlines / how to figure out what is an expression
 
 impl Interpreter {
     pub fn new(mut buf: BufReader<File>) -> io::Result<Interpreter> {
@@ -252,26 +246,48 @@ impl Interpreter {
         }
     }
 
+    fn compress_fn_calls(tokens: Vec<Token>) -> Vec<Token> {
+        let mut comp = vec![];
+        let mut last = None;
+        let mut double_last = None;
+
+        for token in tokens {
+            match token {
+                Token::Grouping(args) => {
+                    if let Some(Token::Identifier(name)) = last.clone() {
+                        if !matches!(double_last, Some(Token::Let)) {
+                            comp.pop();
+                            comp.push(Token::FunctionCall(name, 
+                                Interpreter::compress_fn_calls(args[1..args.len() - 1].to_vec())));
+                            continue;
+                        }
+                    }
+                    comp.push(Token::Grouping(args));
+                }
+                token => {
+                    double_last = last;
+                    last = Some(token.clone());
+                    comp.push(token);
+                }
+            }
+        };
+
+        return comp;
+    }
+
     pub fn pull(&mut self) -> Result<Vec<Token>> {
         let mut tokens = vec![];
-        let mut last = None;
+
         loop {
             match self.parse_next() {
-                Ok(Token::Grouping(args)) => {
-                    if let Some(Token::Identifier(name)) = last.clone() {
-                        tokens.pop();
-                        tokens.push(Token::FunctionCall(name, args));
-                    }
-                }
                 Ok(token) => {
-                    last = Some(token.clone());
                     tokens.push(token);
-                },
+                }
                 Err(e) => {
                     if !self.done() {
                         return Err(e);
                     } else {
-                        return Ok(tokens);
+                        return Ok(Interpreter::compress_fn_calls(tokens));
                     }
                 }
             }
