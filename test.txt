@@ -2,4 +2,6 @@
 #    1 when n <= 1,
 #    fib(n - 1) + fib(n - 2)
 
-let name = 3 + 5 * 9^3
+# still gotta deal with function calls, and how to parse args
+
+let name = 3 + fib(0) * 9^name
