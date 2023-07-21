@@ -95,6 +95,14 @@ impl BinaryOperation {
     pub fn new(op: u8, left: Expr, right: Expr) -> BinaryOperation {
         BinaryOperation { op, left, right }
     }
+
+    pub fn op(&self) -> u8 {
+        self.op
+    }
+
+    pub fn left(&self) -> &Expr {
+        &self.left
+    }
 }
 
 impl VariableRef {

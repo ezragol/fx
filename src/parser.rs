@@ -127,7 +127,7 @@ impl Parser {
         match next {
             Token::Grouping(args) => Ok(Box::new(FunctionDefinition::new(
                 identifier,
-                self.parse_args(args)?,
+                Parser::parse_def_args(args)?,
                 self.parse_expr_or_err()?,
             ))),
             Token::Symbol(Symbol::Equals) => {
@@ -249,9 +249,11 @@ impl Parser {
         return tokens;
     }
 
-    fn parse_grouping(tokens: Vec<Token>) -> Option<Expr> {
-        if tokens.len() > 2 {
-            let mut parser = Parser::from_tree(tokens[1..tokens.len() - 1].to_vec());
+    fn parse_grouping(tokens: Vec<Token>, with_brackets: bool) -> Option<Expr> {
+        let change = if with_brackets { 1 } else { 0 };
+
+        if tokens.len() > 2 * change {
+            let mut parser = Parser::from_tree(tokens[change..tokens.len() - change].to_vec());
             Some(parser.parse_expression()?)
         } else {
             None
@@ -266,11 +268,11 @@ impl Parser {
                 int.unwrap_or(0),
                 float.unwrap_or(0.0),
             ))),
-            Token::Grouping(tokens) => Parser::parse_grouping(tokens),
+            Token::Grouping(tokens) => Parser::parse_grouping(tokens, true),
             // fix
             Token::FunctionCall(name, tokens) => Some(Box::new(
-                if let Some(args) = Parser::parse_grouping(tokens) {
-                    FunctionCall::new(name, vec![args])
+                if let Ok(args) = Parser::parse_call_args(tokens) {
+                    FunctionCall::new(name, args)
                 } else {
                     FunctionCall::new(name, vec![])
                 },
@@ -305,6 +307,7 @@ impl Parser {
         }
 
         op_indexes.sort_by(|a, b| a.1.cmp(&b.1));
+
         for (index, prec) in op_indexes {
             if tree.is_none() {
                 tree = Some(BinaryOperation::new(
@@ -338,11 +341,11 @@ impl Parser {
         Some(Box::new(tree.unwrap()))
     }
 
-    fn parse_args(&mut self, args: Vec<Token>) -> Result<Vec<String>> {
+    fn parse_def_args(args: Vec<Token>) -> Result<Vec<String>> {
         let mut arg_tree = vec![];
         let mut p = Parser::from_tree(args);
-        p.forward();
 
+        p.forward();
         while let Ok(identifier) = p.expect_identifier() {
             if let Ok(next) = p.next_token() {
                 match next {
@@ -362,7 +365,36 @@ impl Parser {
                 }
             }
         }
-        Err(IdentifierError.into())
+        return Err(IdentifierError.into());
+    }
+
+    fn parse_call_args(args: Vec<Token>) -> Result<Vec<Expr>> {
+        let mut arg_tree = vec![];
+        let mut p = Parser::from_tree(args);
+        let mut current_group = vec![];
+        p.forward();
+
+        while let Ok(next) = p.next_token() {
+            match next {
+                Token::Symbol(Symbol::Comma) | Token::Bracket(Bracket::Parens(Is::Closed)) => {
+                    if let Some(parsed) = Parser::parse_grouping(current_group.clone(), false) {
+                        arg_tree.push(parsed);
+                        current_group = vec![];
+                    } else {
+                        break;
+                    }
+
+                    // really fucking interesting
+                    if let Token::Bracket(Bracket::Parens(Is::Closed)) = next {
+                        return Ok(arg_tree);
+                    }
+                }
+                _ => {
+                    current_group.push(next);
+                }
+            }
+        }
+        return Err(BadCommaError.into());
     }
 
     pub fn run(&mut self) {

@@ -22,3 +22,4 @@ def!(EofError, "unexpected end of file!");
 def!(IdentifierError, "expected identifier!");
 def!(GroupingError, "improperly formatted grouping!");
 def!(UnknownTokenError, "unknown token!");
+def!(BadCommaError, "comma placed badly!");

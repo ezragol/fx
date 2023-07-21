@@ -2,6 +2,4 @@
 #    1 when n <= 1,
 #    fib(n - 1) + fib(n - 2)
 
-# still gotta deal with function calls, and how to parse args
-
-let name = fib(n - 1, age, blah) + fib(n - 2)
+let name = fib(n - 1) + fib(n - 2)
