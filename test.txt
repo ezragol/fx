@@ -4,4 +4,4 @@
 
 # still gotta deal with function calls, and how to parse args
 
-let name = 3 + fib(0) * 9^name
+let name = fib(n - 1, age, blah) + fib(n - 2)

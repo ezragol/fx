@@ -37,11 +37,11 @@ impl Parser {
         match symbol {
             Symbol::ToPower => Some(0),
             Symbol::Multiply => Some(1),
-            Symbol::Divide => Some(1),
-            Symbol::Add => Some(2),
-            Symbol::Subtract => Some(2),
-            Symbol::LessThan => Some(3),
-            Symbol::GreaterThan => Some(3),
+            Symbol::Divide => Some(2),
+            Symbol::Add => Some(3),
+            Symbol::Subtract => Some(4),
+            Symbol::LessThan => Some(5),
+            Symbol::GreaterThan => Some(6),
             Symbol::Comma => Some(7),
             Symbol::Equals => Some(8),
             _ => None,
@@ -50,12 +50,12 @@ impl Parser {
 
     fn compound_op_prec(symbols: (Symbol, Symbol)) -> Option<usize> {
         match symbols {
-            (Symbol::LessThan, Symbol::Equals) => Some(3),
-            (Symbol::GreaterThan, Symbol::Equals) => Some(3),
-            (Symbol::Equals, Symbol::Equals) => Some(4),
-            (Symbol::Negate, Symbol::Equals) => Some(4),
-            (Symbol::Ampersand, Symbol::Ampersand) => Some(5),
-            (Symbol::Pipe, Symbol::Pipe) => Some(6),
+            (Symbol::LessThan, Symbol::Equals) => Some(0),
+            (Symbol::GreaterThan, Symbol::Equals) => Some(1),
+            (Symbol::Equals, Symbol::Equals) => Some(2),
+            (Symbol::Negate, Symbol::Equals) => Some(3),
+            (Symbol::Ampersand, Symbol::Ampersand) => Some(4),
+            (Symbol::Pipe, Symbol::Pipe) => Some(5),
             _ => None,
         }
     }
@@ -113,6 +113,14 @@ impl Parser {
         Err(RangeError.into())
     }
 
+    fn parse_expr_or_err(&mut self) -> Result<Expr> {
+        if let Some(expr) = self.parse_expression() {
+            Ok(expr)
+        } else {
+            Err(DeclarationError.into())
+        }
+    }
+
     fn parse_definition(&mut self) -> Result<Expr> {
         let identifier = self.expect_identifier()?;
         let next = self.next_token()?;
@@ -120,13 +128,13 @@ impl Parser {
             Token::Grouping(args) => Ok(Box::new(FunctionDefinition::new(
                 identifier,
                 self.parse_args(args)?,
-                self.parse_expression()?,
+                self.parse_expr_or_err()?,
             ))),
             Token::Symbol(Symbol::Equals) => {
                 self.back();
                 Ok(Box::new(VariableDefinition::new(
                     identifier,
-                    self.parse_expression()?,
+                    self.parse_expr_or_err()?,
                 )))
             }
             _ => Err(DeclarationError.into()),
@@ -202,7 +210,7 @@ impl Parser {
         self.push(1);
     }
 
-    fn read_expr_tokens(&mut self) -> Result<Vec<Token>> {
+    fn read_expr_tokens(&mut self) -> Vec<Token> {
         let mut tokens = vec![];
         loop {
             if let Ok(token) = self.next_token() {
@@ -224,7 +232,8 @@ impl Parser {
                     | Token::Identifier(_)
                     | Token::Number(_, _)
                     | Token::Grouping(_)
-                    | Token::When => {
+                    | Token::When
+                    | Token::FunctionCall(_, _) => {
                         if tokens.len() > 0 || !matches!(token, Token::Symbol(Symbol::Equals)) {
                             tokens.push(token);
                         }
@@ -237,28 +246,45 @@ impl Parser {
                 break;
             }
         }
-        return Ok(tokens);
+        return tokens;
     }
 
-    fn parse_non_symbol(&mut self, symbol: Token) -> Result<Expr> {
+    fn parse_grouping(tokens: Vec<Token>) -> Option<Expr> {
+        if tokens.len() > 2 {
+            let mut parser = Parser::from_tree(tokens[1..tokens.len() - 1].to_vec());
+            Some(parser.parse_expression()?)
+        } else {
+            None
+        }
+    }
+
+    fn parse_non_symbol(&mut self, symbol: Token) -> Option<Expr> {
         match symbol {
-            Token::Identifier(ident) => Ok(Box::new(VariableRef::new(ident))),
-            Token::Number(int, float) => Ok(Box::new(NumberLiteral::new(
+            Token::Identifier(ident) => Some(Box::new(VariableRef::new(ident))),
+            Token::Number(int, float) => Some(Box::new(NumberLiteral::new(
                 int.is_none(),
                 int.unwrap_or(0),
                 float.unwrap_or(0.0),
             ))),
-            Token::Grouping(mut tokens) => {
-                tokens.pop();
-                let mut parser = Parser::from_tree(tokens[1..].to_vec());
-                Ok(parser.parse_expression()?)
-            },
-            _ => Ok(Box::new(NumberLiteral::new(false, 0, 0.0))),
+            Token::Grouping(tokens) => Parser::parse_grouping(tokens),
+            // fix
+            Token::FunctionCall(name, tokens) => Some(Box::new(
+                if let Some(args) = Parser::parse_grouping(tokens) {
+                    FunctionCall::new(name, vec![args])
+                } else {
+                    FunctionCall::new(name, vec![])
+                },
+            )),
+            _ => None,
         }
     }
 
-    fn parse_expression(&mut self) -> Result<Expr> {
-        let tokens = self.read_expr_tokens()?;
+    fn parse_expression(&mut self) -> Option<Expr> {
+        let tokens = self.read_expr_tokens();
+        if tokens.len() == 0 {
+            return None;
+        }
+
         let mut reader = Parser::from_tree(tokens.clone());
         let mut op_indexes = vec![];
         let mut tree = None;
@@ -279,7 +305,6 @@ impl Parser {
         }
 
         op_indexes.sort_by(|a, b| a.1.cmp(&b.1));
-        
         for (index, prec) in op_indexes {
             if tree.is_none() {
                 tree = Some(BinaryOperation::new(
@@ -307,10 +332,10 @@ impl Parser {
         }
 
         if tree.is_none() {
-            return Ok(self.parse_non_symbol(tokens[0].clone())?);
+            return Some(self.parse_non_symbol(tokens[0].clone())?);
         }
 
-        Ok(Box::new(tree.unwrap()))
+        Some(Box::new(tree.unwrap()))
     }
 
     fn parse_args(&mut self, args: Vec<Token>) -> Result<Vec<String>> {
@@ -362,7 +387,7 @@ impl Parser {
                     match next.unwrap() {
                         Token::Identifier(_) | Token::Extern | Token::Grouping(_) => {
                             self.back();
-                            match self.parse_expression() {
+                            match self.parse_expr_or_err() {
                                 Err(e) => {
                                     err!("error: {}", e);
                                 }

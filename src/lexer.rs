@@ -3,7 +3,7 @@ use std::{
     io::{self, BufReader, Read},
 };
 
-use crate::errors::*;
+use crate::{errors::*, ast::FunctionCall};
 
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -56,6 +56,7 @@ pub enum Token {
     Bracket(Bracket),
     Newline,
     Grouping(Vec<Token>),
+    FunctionCall(String, Vec<Token>)
 }
 
 pub struct Interpreter {
@@ -253,9 +254,19 @@ impl Interpreter {
 
     pub fn pull(&mut self) -> Result<Vec<Token>> {
         let mut tokens = vec![];
+        let mut last = None;
         loop {
             match self.parse_next() {
-                Ok(token) => tokens.push(token),
+                Ok(Token::Grouping(args)) => {
+                    if let Some(Token::Identifier(name)) = last.clone() {
+                        tokens.pop();
+                        tokens.push(Token::FunctionCall(name, args));
+                    }
+                }
+                Ok(token) => {
+                    last = Some(token.clone());
+                    tokens.push(token);
+                },
                 Err(e) => {
                     if !self.done() {
                         return Err(e);

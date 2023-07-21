@@ -79,6 +79,12 @@ impl FunctionDefinition {
     }
 }
 
+impl FunctionCall {
+    pub fn new(name: String, args: Vec<Expr>) -> FunctionCall {
+        FunctionCall { name, args }
+    }
+}
+
 impl Range {
     pub fn new(start: Expr, end: Expr) -> Range {
         Range { start, end }
@@ -103,3 +109,4 @@ impl Expression for VariableDefinition {}
 impl Expression for FunctionDefinition {}
 impl Expression for BinaryOperation {}
 impl Expression for VariableRef {}
+impl Expression for FunctionCall {}

@@ -22,3 +22,6 @@ use cbindgen (with cbindgen.toml)
     `1 when n <= 2,` => is parsed like `if n <= 2 then return 1`
 
     `fib(n - 1) + fib(n - 2)` => is split into two expressions: one function call to `fib(n-1)` and one to `fib(n-2)`. the function calls are taken out of the tree and then re inserted (after op prec is run on their arguments) so that the op prec is able to run on the addition of the two recursive calls. this is the third branch of the piecewise fibonacci function.
+
+# todo
+- look into using doubly linked lists instead of vectors for the parser/lexer tokens
