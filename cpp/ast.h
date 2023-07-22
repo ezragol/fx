@@ -1,13 +1,11 @@
 #ifndef __AST_H
 #define __AST_H
 
+#include <string>
 #include <memory>
-#include <llvm/IR/DerivedTypes.h>
+#include <vector>
 
-#include "interface.h"
-
-using namespace llvm;
-using namespace ast;
+using namespace std;
 
 namespace ast
 {
@@ -15,7 +13,6 @@ namespace ast
     {
     public:
         virtual ~Expr() = default;
-        virtual Value *codegen() = 0;
     };
 
     class NumberLiteral : public Expr
@@ -26,24 +23,28 @@ namespace ast
 
     public:
         NumberLiteral(bool Floating, int IntVal, double FloatVal);
-        Value *codegen() override;
+        const bool &isFloating();
+        const int &getIntVal();
+        const double &getFloatVal();
     };
 
-    class StringLiteral : public Expr
-    {
-        string StringVal;
+    // in the future :D
+    // class StringLiteral : public Expr
+    // {
+    //     string StringVal;
 
-    public:
-        StringLiteral(string StringVal);
-        Value *codegen() override;
-    };
+    // public:
+    //     StringLiteral(string StringVal);
+    //     Value *codegen() override;
+    // };
 
     class VariableDefinition : public Expr {
         string Name;
         unique_ptr<Expr> Definition;
     public:
         VariableDefinition(string Name, unique_ptr<Expr> Definition);
-        Value *codegen() override;
+        const string &getName();
+        const unique_ptr<Expr> &getDefinition();
     };
 
     class FunctionDefinition : public Expr {
@@ -52,14 +53,16 @@ namespace ast
         unique_ptr<Expr> Body;
     public:
         FunctionDefinition(string Name, vector<string> Args, unique_ptr<Expr> Body);
-        Value *codegen() override;
+        const string &getName();
+        const vector<string> &getArgs();
+        const unique_ptr<Expr> &getBody();
     };
 
     class ChainExpression : public Expr {
         vector<unique_ptr<Expr>> Expressions;
     public:
         ChainExpression(vector<unique_ptr<Expr>> Expressions);
-        Value *codegen() override;
+        const vector<unique_ptr<Expr>> &getExpressions();
     };
 
     class BinaryOperation : public Expr {
@@ -68,7 +71,9 @@ namespace ast
         unique_ptr<Expr> Right;
     public:
         BinaryOperation(uint8_t Op, unique_ptr<Expr> Left, unique_ptr<Expr> Right);
-        Value *codegen() override;
+        const uint8_t &getOp();
+        const unique_ptr<Expr> &getLeft();
+        const unique_ptr<Expr> &getRight();
     };
 
     class WhenExpression : public Expr {
@@ -76,7 +81,8 @@ namespace ast
         unique_ptr<Expr> Predicate;
     public:
         WhenExpression(unique_ptr<Expr> Result, unique_ptr<Expr> Predicate);
-        Value *codegen() override;
+        const unique_ptr<Expr> &getResult();
+        const unique_ptr<Expr> &getPredicate();
     };
 
     class FunctionCall : public Expr {
@@ -84,14 +90,15 @@ namespace ast
         vector<unique_ptr<Expr>> Args;
     public:
         FunctionCall(string Name, vector<unique_ptr<Expr>> Args);
-        Value *codegen() override;
+        const string &getName();
+        const vector<unique_ptr<Expr>> &getArgs();
     };
 
     class VariableRef : public Expr {
         string Name;
     public:
         VariableRef(string Name);
-        Value *codegen() override;
+        const string &getName();
     };
 }
 

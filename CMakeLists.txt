@@ -12,7 +12,10 @@ message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
-add_executable(fx cpp/interface.cpp cpp/ast.cpp)
+add_executable(fx 
+        cpp/interface.cpp 
+        cpp/ast.cpp 
+        cpp/codegen.cpp)
 
 llvm_map_components_to_libnames(llvm_libs support core irreader)
 
