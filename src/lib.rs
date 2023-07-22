@@ -30,7 +30,6 @@ pub extern fn recieve_tokens() -> FFISafeExprVec {
     let ffi_safe = FFISafeExprVec {
         ptr: ffi_safe_tree.0,
         len: ffi_safe_tree.1,
-        capacity: ffi_safe_tree.2
     };
     return ffi_safe;
 }

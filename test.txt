@@ -2,5 +2,7 @@ let fib(n) =
     1 when n <= 1,
     fib(n - 1) + fib(n - 2)
 
+let greet(name, last_name, age) = 1
+
 print("hi")
 print(fib(10))

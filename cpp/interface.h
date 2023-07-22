@@ -13,5 +13,7 @@ using namespace std;
 using namespace ffi;
 
 vector<FFISafeExpr*> TranslateRustVec(FFISafeExprVec rustVec);
+vector<FFISafeExpr*> TranslateVecPtr(FFISafeExpr* ptr, uint32_t len, uint32_t capacity);
+vector<FFISafeExpr*> TranslateStringVec(const char *ptr, uint32_t len, uint32_t capacity);
 
 #endif
