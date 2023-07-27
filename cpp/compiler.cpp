@@ -24,13 +24,14 @@ int Compile(string OutFile)
 
     FFISafeExprVec Tokens = recieve_tokens();
     auto Tree = ReGenerateAST(Tokens);
-    for (auto &branch : Tree)
-    {
-        branch->Gen(&Generator);
-    }
+    PrintAST(Tree);
+    // for (auto &branch : Tree)
+    // {
+    //     branch->Gen(&Generator);
+    // }
 
-    if (Generator.RunPass(OutFile))
-        return 1;
-        
+    // if (Generator.RunPass(OutFile))
+    //     return 1;
+
     return 0;
 }

@@ -391,8 +391,8 @@ ChainExpression::ChainExpression(vector<unique_ptr<Expr>> Exprs)
     int LastIndex = Exprs.size() - 1;
     for (int i = 0; i < LastIndex; i++)
     {
-        unique_ptr<WhenExpression> When(dynamic_cast<WhenExpression *>(Exprs[i].get()));
-        Expressions.push_back(move(When));
+        unique_ptr<WhenExpression> WhenPtr(static_cast<WhenExpression *>(Exprs[i].get()));
+        Expressions.push_back(move(WhenPtr));
     }
     Last = move(Exprs[LastIndex]);
 }
@@ -412,7 +412,7 @@ void ChainExpression::Print(string Prefix)
     cout << Prefix << "chain { \n";
     for (auto &Expr : Expressions)
     {
-        Expr->Print(Prefix + "  ");
+        // Expr->Print(Prefix + "  ");
     }
     Last->Print(Prefix + "  ");
     cout << Prefix << "}\n";
