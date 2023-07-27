@@ -132,7 +132,7 @@ namespace ast
         unique_ptr<Expr> Last;
 
     public:
-        ChainExpression(vector<unique_ptr<Expr>> Expressions);
+        ChainExpression(vector<unique_ptr<WhenExpression>> Expressions, unique_ptr<Expr> Last);
         const vector<unique_ptr<WhenExpression>> &GetExpressions();
         const unique_ptr<Expr> &GetLast();
         void Print(string Prefix) override;

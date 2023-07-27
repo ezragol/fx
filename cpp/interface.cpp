@@ -21,6 +21,13 @@ vector<string> TranslateStringVec(const char *const *Ptr, uint32_t Len)
     return Vec;
 }
 
+unique_ptr<WhenExpression> TranslateWhen(const FFISafeExpr *Raw)
+{
+    return make_unique<WhenExpression>(
+        TranslateExpression(Raw->when_expression._0),
+        TranslateExpression(Raw->when_expression._1));
+}
+
 unique_ptr<Expr> TranslateExpression(const FFISafeExpr *Raw)
 {
     switch (Raw->tag)
@@ -47,8 +54,15 @@ unique_ptr<Expr> TranslateExpression(const FFISafeExpr *Raw)
     }
     case FFISafeExpr::Tag::ChainExpression:
     {
-        return make_unique<ChainExpression>(
-            TranslateExpressionVec(Raw->chain_expression._0, Raw->chain_expression._1));
+        const FFISafeExpr *Ptr = Raw->chain_expression._0;
+        uintptr_t Size = Raw->chain_expression._1 - 1;
+        vector<unique_ptr<WhenExpression>> WhenVec;
+
+        for (uint8_t i = 0; i < Size; i++)
+        {
+            WhenVec.push_back(TranslateWhen(Ptr + i));
+        }
+        return make_unique<ChainExpression>(move(WhenVec), TranslateExpression(Ptr + Size));
     }
     case FFISafeExpr::Tag::BinaryOperation:
     {
@@ -58,9 +72,7 @@ unique_ptr<Expr> TranslateExpression(const FFISafeExpr *Raw)
     }
     case FFISafeExpr::Tag::WhenExpression:
     {
-        return make_unique<WhenExpression>(
-            TranslateExpression(Raw->when_expression._0),
-            TranslateExpression(Raw->when_expression._1));
+        return TranslateWhen(Raw);
     }
     case FFISafeExpr::Tag::FunctionCall:
     {

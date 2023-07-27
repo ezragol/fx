@@ -10,9 +10,11 @@
 
 using namespace ffi;
 
-vector<FFISafeExpr*> TranslateRustVec(FFISafeExprVec rustVec);
-vector<FFISafeExpr*> TranslateStringVec(const char *ptr, uint32_t len);
+vector<FFISafeExpr *> TranslateRustVec(FFISafeExprVec rustVec);
+vector<FFISafeExpr *> TranslateStringVec(const char *ptr, uint32_t len);
+unique_ptr<WhenExpression> TranslateWhen(const FFISafeExpr *Raw);
 unique_ptr<Expr> TranslateExpression(const FFISafeExpr *Raw);
+
 vector<unique_ptr<Expr>> ReGenerateAST(FFISafeExprVec Tokens);
 void PrintAST(vector<unique_ptr<Expr>> &Tree);
 

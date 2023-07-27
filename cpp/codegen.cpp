@@ -6,9 +6,9 @@ CodeGen::CodeGen(string TargetTriple, class TargetMachine *TargetMachine)
     TheContext = make_unique<LLVMContext>();
     TheModule = make_unique<Module>("fx", *TheContext);
     Builder = make_unique<IRBuilder<>>(*TheContext);
-
-    TheModule->setDataLayout(TargetMachine->createDataLayout());
+    
     TheModule->setTargetTriple(TargetTriple);
+    TheModule->setDataLayout(TargetMachine->createDataLayout());
 }
 
 int CodeGen::RunPass(string OutFile)
@@ -48,11 +48,6 @@ Function *CodeGen::LoadFunction(string Name)
     if (auto *Fn = TheModule->getFunction(Name))
     {
         return Fn;
-    }
-    for (auto &Fn : FunctionDefs)
-    {
-        if (Fn->GetName() == Name)
-            return (Function *)Fn->Gen(this);
     }
     return nullptr;
 }
@@ -109,7 +104,7 @@ Value *CodeGen::GenStringLiteral(ast::StringLiteral *String)
     return ConstantFP::get(*TheContext, APFloat(0.0));
 }
 
-// todo
+// get rid of
 Value *CodeGen::GenVariableDefinition(VariableDefinition *Var)
 {
     Function *Parent = Builder->GetInsertBlock()->getParent();
@@ -188,8 +183,11 @@ Value *CodeGen::GenBinaryOperation(BinaryOperation *Bin)
     Value *Right = Bin->GetRight()->Gen(this);
 
     if (!Left || !Right)
+    {
         cout << "error inside binary operator!\n";
-    return nullptr;
+        Bin->Print("");
+        return nullptr;
+    }
 
     switch (Bin->GetOp())
     {
@@ -270,8 +268,10 @@ Value *CodeGen::GenVariableRef(VariableRef *Ref)
     string Name = Ref->GetName();
     Value *V = NamedValues[Name];
     if (!V)
+    {
         cout << "unknown variable name!";
-    return nullptr;
+        return nullptr;
+    }
 
     // Load the value.
     return Builder->CreateLoad(Type::getDoubleTy(*TheContext), V, Name);
@@ -385,17 +385,8 @@ Value *FunctionDefinition::Gen(CodeGen *Generator)
     return Generator->GenFunctionDefinition(this);
 }
 
-ChainExpression::ChainExpression(vector<unique_ptr<Expr>> Exprs)
-{
-    Expressions = vector<unique_ptr<WhenExpression>>();
-    int LastIndex = Exprs.size() - 1;
-    for (int i = 0; i < LastIndex; i++)
-    {
-        unique_ptr<WhenExpression> WhenPtr(static_cast<WhenExpression *>(Exprs[i].get()));
-        Expressions.push_back(move(WhenPtr));
-    }
-    Last = move(Exprs[LastIndex]);
-}
+ChainExpression::ChainExpression(vector<unique_ptr<WhenExpression>> Expressions, unique_ptr<Expr> Last)
+    : Expressions(move(Expressions)), Last(move(Last)) {}
 
 const vector<unique_ptr<WhenExpression>> &ChainExpression::GetExpressions()
 {
@@ -412,7 +403,7 @@ void ChainExpression::Print(string Prefix)
     cout << Prefix << "chain { \n";
     for (auto &Expr : Expressions)
     {
-        // Expr->Print(Prefix + "  ");
+        Expr->Print(Prefix + "  ");
     }
     Last->Print(Prefix + "  ");
     cout << Prefix << "}\n";
