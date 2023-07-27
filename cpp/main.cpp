@@ -1,7 +1,6 @@
-#include "interface.h"
+#include "compiler.h"
 
 int main()
 {
-    
-    PrintAST(Tree);
+    Compile("main.o");
 }

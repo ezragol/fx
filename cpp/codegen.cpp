@@ -1,25 +1,37 @@
 #include "codegen.h"
 
-CodeGen::CodeGen(string TargetTriple, TargetMachine *TargetMachine)
+CodeGen::CodeGen(string TargetTriple, class TargetMachine *TargetMachine)
     : TargetTriple(TargetTriple), TargetMachine(TargetMachine)
 {
+    TheContext = make_unique<LLVMContext>();
+    TheModule = make_unique<Module>("fx", *TheContext);
+    Builder = make_unique<IRBuilder<>>(*TheContext);
+
     TheModule->setDataLayout(TargetMachine->createDataLayout());
     TheModule->setTargetTriple(TargetTriple);
 }
 
-int CodeGen::RunPass()
+int CodeGen::RunPass(string OutFile)
 {
-    legacy::PassManager pass;
+    legacy::PassManager Pass;
     auto FileType = CGFT_ObjectFile;
+    std::error_code EC;
+    raw_fd_ostream Dest(OutFile, EC, sys::fs::OF_None);
 
-    if (TargetMachine->addPassesToEmitFile(pass, dest, nullptr, FileType))
+    if (EC)
+    {
+        errs() << "Could not open file: " << EC.message();
+        return 1;
+    }
+
+    if (TargetMachine->addPassesToEmitFile(Pass, Dest, nullptr, FileType))
     {
         errs() << "TargetMachine can't emit a file of this type";
         return 1;
     }
 
-    pass.run(*TheModule);
-    dest.flush();
+    Pass.run(*TheModule);
+    Dest.flush();
     return 0;
 }
 
@@ -40,8 +52,9 @@ Function *CodeGen::LoadFunction(string Name)
     for (auto &Fn : FunctionDefs)
     {
         if (Fn->GetName() == Name)
-            return Fn->Gen(this);
+            return (Function *)Fn->Gen(this);
     }
+    return nullptr;
 }
 
 Value *CodeGen::GenNumberLiteral(NumberLiteral *Num)
@@ -64,24 +77,19 @@ Function *CodeGen::GenFunctionDefinition(FunctionDefinition *Def)
     vector<Type *> ArgT(Def->GetArgs().size(), Type::getDoubleTy(*TheContext));
     FunctionType *FuncT = FunctionType::get(Type::getDoubleTy(*TheContext), ArgT, false);
     Function *Fn = Function::Create(FuncT, Function::ExternalLinkage, Def->GetName(), TheModule.get());
-
-    NamedValues.clear();
-    unsigned int i = 0;
-    for (auto &Arg : Fn->args())
-    {
-        Arg.setName(Def->GetArgs()[i++]);
-    }
-
     BasicBlock *Block = BasicBlock::Create(*TheContext, "entry", Fn);
     Builder->SetInsertPoint(Block);
     NamedValues.clear();
 
     // create a "named value" (aka variable) for each argument of the function
+    unsigned int i = 0;
     for (auto &Arg : Fn->args())
     {
-        AllocaInst *Alloca = CreateEntryBlockAlloca(Fn, Arg.getName());
+        string Name = Def->GetArgs()[i++];
+        Arg.setName(Name);
+        AllocaInst *Alloca = CreateEntryBlockAlloca(Fn, Name);
         Builder->CreateStore(&Arg, Alloca);
-        NamedValues[string(Arg.getName())] = Alloca;
+        NamedValues[Name] = Alloca;
     }
 
     if (Value *Returned = Def->GetBody()->Gen(this))
@@ -104,13 +112,73 @@ Value *CodeGen::GenStringLiteral(ast::StringLiteral *String)
 // todo
 Value *CodeGen::GenVariableDefinition(VariableDefinition *Var)
 {
-    
+    Function *Parent = Builder->GetInsertBlock()->getParent();
+    string Name = Var->GetName();
+    auto PreDefined = NamedValues.find(Name);
+    AllocaInst *Alloca;
+
+    if (PreDefined == NamedValues.end())
+    {
+        Alloca = CreateEntryBlockAlloca(Parent, Name);
+    }
+    else
+    {
+        Alloca = NamedValues[Name];
+    }
+
+    Value *Val = Var->GetDefinition()->Gen(this);
+    Builder->CreateStore(Val, Alloca);
+    return Val;
+}
+
+Value *CodeGen::NestChainExpression(ChainExpression *Chain, int Index)
+{
+    const unique_ptr<WhenExpression> &When = Chain->GetExpressions()[Index];
+    Function *Parent = Builder->GetInsertBlock()->getParent();
+    Value *Predicate = When->GetPredicate()->Gen(this);
+    Value *Result = When->GetResult()->Gen(this);
+    Value *NextResult;
+
+    if (Index < Chain->GetExpressions().size() - 1)
+    {
+        NextResult = NestChainExpression(Chain, Index + 1);
+    }
+    else
+    {
+        NextResult = Chain->GetLast()->Gen(this);
+    }
+    if (!Predicate || !Result || !NextResult)
+    {
+        cout << "Missing result or predicate!\n";
+        return nullptr;
+    }
+
+    BasicBlock *Current = BasicBlock::Create(*TheContext, "then", Parent);
+    BasicBlock *Next = BasicBlock::Create(*TheContext, "else");
+    BasicBlock *Merge = BasicBlock::Create(*TheContext, "ifcont");
+
+    Builder->CreateCondBr(Predicate, Current, Next);
+    Builder->SetInsertPoint(Current);
+    Builder->CreateBr(Merge);
+
+    Current = Builder->GetInsertBlock();
+    Parent->insert(Parent->end(), Next);
+    Builder->SetInsertPoint(Next);
+    Builder->CreateBr(Merge);
+
+    Next = Builder->GetInsertBlock();
+    Parent->insert(Parent->end(), Merge);
+    Builder->SetInsertPoint(Merge);
+    PHINode *Phi = Builder->CreatePHI(Type::getDoubleTy(*TheContext), 2, "iftmp");
+    Phi->addIncoming(Result, Current);
+    Phi->addIncoming(NextResult, Next);
+    return Phi;
 }
 
 // todo
 Value *CodeGen::GenChainExpression(ChainExpression *Chain)
 {
-    return ConstantFP::get(*TheContext, APFloat(0.0));
+    return NestChainExpression(Chain, 0);
 }
 
 // todo
@@ -132,14 +200,14 @@ Value *CodeGen::GenBinaryOperation(BinaryOperation *Bin)
     case 3:
         return Builder->CreateFAdd(Left, Right, "addtmp");
     case 4:
-        return Builder->CreateFSub(Left, right, "subtmp");
+        return Builder->CreateFSub(Left, Right, "subtmp");
 
     // boolean operators
     case 5:
         Left = Builder->CreateFCmpULT(Left, Right, "ulttmp");
         break;
     case 6:
-        Left = Builder->CreateFCmpUGT(Left, right, "ugttmp");
+        Left = Builder->CreateFCmpUGT(Left, Right, "ugttmp");
         break;
     case 9:
         Left = Builder->CreateFCmpULE(Left, Right, "uletmp");
@@ -193,19 +261,20 @@ Value *CodeGen::GenFunctionCall(FunctionCall *Call)
             return nullptr;
     }
 
-    return Builder->CreateCall(Fn, ArgV, "calltmp");
+    return Builder->CreateCall(Fn, Argv, "calltmp");
 }
 
 // todo
 Value *CodeGen::GenVariableRef(VariableRef *Ref)
 {
-    Value *V = NamedValues[Ref->GetName()];
+    string Name = Ref->GetName();
+    Value *V = NamedValues[Name];
     if (!V)
         cout << "unknown variable name!";
-        return nullptr;
+    return nullptr;
 
     // Load the value.
-    return Builder->CreateLoad(Type::getDoubleTy(*TheContext), V, Ref->GetName().c_str());
+    return Builder->CreateLoad(Type::getDoubleTy(*TheContext), V, Name);
 }
 
 /////////
@@ -316,12 +385,26 @@ Value *FunctionDefinition::Gen(CodeGen *Generator)
     return Generator->GenFunctionDefinition(this);
 }
 
-ChainExpression::ChainExpression(vector<unique_ptr<Expr>> Expressions)
-    : Expressions(move(Expressions)) {}
+ChainExpression::ChainExpression(vector<unique_ptr<Expr>> Exprs)
+{
+    Expressions = vector<unique_ptr<WhenExpression>>();
+    int LastIndex = Exprs.size() - 1;
+    for (int i = 0; i < LastIndex; i++)
+    {
+        unique_ptr<WhenExpression> When(dynamic_cast<WhenExpression *>(Exprs[i].get()));
+        Expressions.push_back(move(When));
+    }
+    Last = move(Exprs[LastIndex]);
+}
 
-const vector<unique_ptr<Expr>> &ChainExpression::GetExpressions()
+const vector<unique_ptr<WhenExpression>> &ChainExpression::GetExpressions()
 {
     return Expressions;
+}
+
+const unique_ptr<Expr> &ChainExpression::GetLast()
+{
+    return Last;
 }
 
 void ChainExpression::Print(string Prefix)
@@ -331,6 +414,7 @@ void ChainExpression::Print(string Prefix)
     {
         Expr->Print(Prefix + "  ");
     }
+    Last->Print(Prefix + "  ");
     cout << Prefix << "}\n";
 }
 

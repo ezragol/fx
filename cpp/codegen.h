@@ -98,17 +98,6 @@ namespace ast
         Value *Gen(CodeGen *Generator) override;
     };
 
-    class ChainExpression : public Expr
-    {
-        vector<unique_ptr<Expr>> Expressions;
-
-    public:
-        ChainExpression(vector<unique_ptr<Expr>> Expressions);
-        const vector<unique_ptr<Expr>> &GetExpressions();
-        void Print(string Prefix) override;
-        Value *Gen(CodeGen *Generator) override;
-    };
-
     class BinaryOperation : public Expr
     {
         uint8_t Op;
@@ -133,6 +122,19 @@ namespace ast
         WhenExpression(unique_ptr<Expr> Result, unique_ptr<Expr> Predicate);
         const unique_ptr<Expr> &GetResult();
         const unique_ptr<Expr> &GetPredicate();
+        void Print(string Prefix) override;
+        Value *Gen(CodeGen *Generator) override;
+    };
+
+    class ChainExpression : public Expr
+    {
+        vector<unique_ptr<WhenExpression>> Expressions;
+        unique_ptr<Expr> Last;
+
+    public:
+        ChainExpression(vector<unique_ptr<Expr>> Expressions);
+        const vector<unique_ptr<WhenExpression>> &GetExpressions();
+        const unique_ptr<Expr> &GetLast();
         void Print(string Prefix) override;
         Value *Gen(CodeGen *Generator) override;
     };
@@ -175,10 +177,11 @@ class CodeGen
     TargetMachine *TargetMachine;
     AllocaInst *CreateEntryBlockAlloca(Function *TheFunction, StringRef VarName);
     Function *LoadFunction(string Name);
+    Value *NestChainExpression(ChainExpression *When, int Index);
 
 public:
-    CodeGen(string TargetTriple, TargetMachine *TargetMachine);
-    int RunPass();
+    CodeGen(string TargetTriple, class TargetMachine *TargetMachine);
+    int RunPass(string OutFile);
 
     Value *GenNumberLiteral(NumberLiteral *Num);
     Value *GenStringLiteral(ast::StringLiteral *String);
