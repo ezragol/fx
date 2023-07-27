@@ -1,47 +1,96 @@
 #include "interface.h"
 
-vector<FFISafeExpr *> TranslateRustVec(FFISafeExprVec rustVec)
+vector<unique_ptr<Expr>> TranslateExpressionVec(const FFISafeExpr *Ptr, uint8_t Len)
 {
-    vector<FFISafeExpr *> vec;
-    for (int i = 0; i < rustVec.len; i++)
+    vector<unique_ptr<Expr>> Vec;
+    for (uint8_t i = 0; i < Len; i++)
     {
-        vec.push_back(rustVec.ptr + i);
+        Vec.push_back(TranslateExpression(Ptr + i));
     }
-    return vec;
+    return Vec;
 }
 
-vector<FFISafeExpr *> TranslateVecPtr(FFISafeExpr *ptr, uint32_t len)
+vector<string> TranslateStringVec(const char *const *Ptr, uint32_t Len)
 {
-    FFISafeExprVec rustVec = {ptr, len};
-    return TranslateRustVec(rustVec);
-}
-
-vector<string> TranslateStringVec(const char *const *ptr, uint32_t len)
-{
-    vector<string> vec;
-    for (int i = 0; i < len; i++)
+    vector<string> Vec;
+    for (int i = 0; i < Len; i++)
     {
-        string cpp_str(*(ptr + i));
-        vec.push_back(cpp_str);
+        string Deref(*(Ptr + i));
+        Vec.push_back(Deref);
     }
-    return vec;
+    return Vec;
 }
 
-int main()
+unique_ptr<Expr> TranslateExpression(const FFISafeExpr *Raw)
 {
-    FFISafeExprVec tokens = recieve_tokens();
-    vector<FFISafeExpr *> vec = TranslateRustVec(tokens);
-    for (auto item : vec)
+    switch (Raw->tag)
     {
-        if (item->tag == FFISafeExpr::Tag::FunctionDefinition)
-        {
-            cout << item->function_definition._0 << "(";
-            vector<string> args = TranslateStringVec(item->function_definition._1, item->function_definition._2);
-            for (string arg : args)
-            {
-                cout << arg << ", ";
-            }
-            cout << ")\n";
-        }
+    case FFISafeExpr::Tag::NumberLiteral:
+    {
+        return make_unique<NumberLiteral>(Raw->number_literal._0, Raw->number_literal._1, Raw->number_literal._2);
+    }
+    case FFISafeExpr::Tag::StringLiteral:
+    {
+        return make_unique<ast::StringLiteral>(Raw->string_literal._0);
+    }
+    case FFISafeExpr::Tag::VariableDefinition:
+    {
+        return make_unique<VariableDefinition>(
+            Raw->variable_definition._0,
+            TranslateExpression(Raw->variable_definition._1));
+    }
+    case FFISafeExpr::Tag::FunctionDefinition:
+    {
+        string FuncName = Raw->function_definition._0;
+        vector<string> Args = TranslateStringVec(Raw->function_definition._1, Raw->function_definition._2);
+        return make_unique<FunctionDefinition>(FuncName, Args, TranslateExpression(Raw->function_definition._3));
+    }
+    case FFISafeExpr::Tag::ChainExpression:
+    {
+        return make_unique<ChainExpression>(
+            TranslateExpressionVec(Raw->chain_expression._0, Raw->chain_expression._1));
+    }
+    case FFISafeExpr::Tag::BinaryOperation:
+    {
+        return make_unique<BinaryOperation>(Raw->binary_operation._0,
+                                            TranslateExpression(Raw->binary_operation._1),
+                                            TranslateExpression(Raw->binary_operation._2));
+    }
+    case FFISafeExpr::Tag::WhenExpression:
+    {
+        return make_unique<WhenExpression>(
+            TranslateExpression(Raw->when_expression._0),
+            TranslateExpression(Raw->when_expression._1));
+    }
+    case FFISafeExpr::Tag::FunctionCall:
+    {
+        return make_unique<FunctionCall>(
+            Raw->function_call._0,
+            TranslateExpressionVec(Raw->function_call._1, Raw->function_call._2));
+    }
+    case FFISafeExpr::Tag::VariableRef:
+    {
+        return make_unique<VariableRef>(Raw->variable_ref._0);
+    }
+    }
+}
+
+vector<unique_ptr<Expr>> ReGenerateAST(FFISafeExprVec Tokens)
+{
+    vector<unique_ptr<Expr>> Tree;
+    const FFISafeExpr *Next;
+    for (int i = 0; i < Tokens.len; i++)
+    {
+        Next = Tokens.ptr + i;
+        Tree.push_back(TranslateExpression(Next));
+    }
+    return Tree;
+}
+
+void PrintAST(vector<unique_ptr<Expr>> &Tree)
+{
+    for (auto &branch : Tree)
+    {
+        branch->Print("");
     }
 }

@@ -3,17 +3,17 @@
 
 #include <iostream>
 #include <vector>
-#include <stdio.h>
-#include <stdint.h>
-#include <sstream>
+#include <memory>
 
 #include "fx.h"
+#include "codegen.h"
 
-using namespace std;
 using namespace ffi;
 
 vector<FFISafeExpr*> TranslateRustVec(FFISafeExprVec rustVec);
-vector<FFISafeExpr*> TranslateVecPtr(FFISafeExpr* ptr, uint32_t len, uint32_t capacity);
-vector<FFISafeExpr*> TranslateStringVec(const char *ptr, uint32_t len, uint32_t capacity);
+vector<FFISafeExpr*> TranslateStringVec(const char *ptr, uint32_t len);
+unique_ptr<Expr> TranslateExpression(const FFISafeExpr *Raw);
+vector<unique_ptr<Expr>> ReGenerateAST(FFISafeExprVec Tokens);
+void PrintAST(vector<unique_ptr<Expr>> &Tree);
 
 #endif

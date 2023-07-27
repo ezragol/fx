@@ -1,8 +1,6 @@
 let fib(n) =
-    1 when n <= 1,
-    fib(n - 1) + fib(n - 2)
+    1.0 when n <= 1.0,
+    fib(n - 1.0) + fib(n - 2.0)
 
-let greet(name, last_name, age) = 1
-
-print("hi")
-print(fib(10))
+let print = "hi"
+print(fib(10.0))

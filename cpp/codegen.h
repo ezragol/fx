@@ -1,8 +1,6 @@
 #ifndef __CODEGEN_H
 #define __CODEGEN_H
 
-#include "ast.h"
-
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/BasicBlock.h"
@@ -25,26 +23,172 @@
 #include "llvm/Target/TargetOptions.h"
 
 #include <map>
+#include <string>
+#include <memory>
+#include <vector>
+#include <iostream>
 #include <math.h>
 
 using namespace llvm;
+using namespace std;
+
+class CodeGen;
+
+namespace ast
+{
+    class Expr
+    {
+    public:
+        virtual ~Expr() = default;
+        virtual void Print(string Prefix) = 0;
+        virtual Value *Gen(CodeGen *Generator) = 0;
+    };
+
+    class NumberLiteral : public Expr
+    {
+        bool Floating;
+        int IntVal;
+        double FloatVal;
+
+    public:
+        NumberLiteral(bool Floating, int IntVal, double FloatVal);
+        const bool &IsFloating();
+        const int &GetIntVal();
+        const double &GetFloatVal();
+        void Print(string Prefix) override;
+        Value *Gen(CodeGen *Generator) override;
+    };
+
+    class StringLiteral : public Expr
+    {
+        string StringVal;
+
+    public:
+        StringLiteral(string StringVal);
+        const string &GetStringVal();
+        void Print(string Prefix) override;
+        Value *Gen(CodeGen *Generator) override;
+    };
+
+    class VariableDefinition : public Expr
+    {
+        string Name;
+        unique_ptr<Expr> Definition;
+
+    public:
+        VariableDefinition(string Name, unique_ptr<Expr> Definition);
+        const string &GetName();
+        const unique_ptr<Expr> &GetDefinition();
+        void Print(string Prefix) override;
+        Value *Gen(CodeGen *Generator) override;
+    };
+
+    class FunctionDefinition : public Expr
+    {
+        string Name;
+        vector<string> Args;
+        unique_ptr<Expr> Body;
+
+    public:
+        FunctionDefinition(string Name, vector<string> Args, unique_ptr<Expr> Body);
+        const string &GetName();
+        const vector<string> &GetArgs();
+        const unique_ptr<Expr> &GetBody();
+        void Print(string Prefix) override;
+        Value *Gen(CodeGen *Generator) override;
+    };
+
+    class ChainExpression : public Expr
+    {
+        vector<unique_ptr<Expr>> Expressions;
+
+    public:
+        ChainExpression(vector<unique_ptr<Expr>> Expressions);
+        const vector<unique_ptr<Expr>> &GetExpressions();
+        void Print(string Prefix) override;
+        Value *Gen(CodeGen *Generator) override;
+    };
+
+    class BinaryOperation : public Expr
+    {
+        uint8_t Op;
+        unique_ptr<Expr> Left;
+        unique_ptr<Expr> Right;
+
+    public:
+        BinaryOperation(uint8_t Op, unique_ptr<Expr> Left, unique_ptr<Expr> Right);
+        const uint8_t &GetOp();
+        const unique_ptr<Expr> &GetLeft();
+        const unique_ptr<Expr> &GetRight();
+        void Print(string Prefix) override;
+        Value *Gen(CodeGen *Generator) override;
+    };
+
+    class WhenExpression : public Expr
+    {
+        unique_ptr<Expr> Result;
+        unique_ptr<Expr> Predicate;
+
+    public:
+        WhenExpression(unique_ptr<Expr> Result, unique_ptr<Expr> Predicate);
+        const unique_ptr<Expr> &GetResult();
+        const unique_ptr<Expr> &GetPredicate();
+        void Print(string Prefix) override;
+        Value *Gen(CodeGen *Generator) override;
+    };
+
+    class FunctionCall : public Expr
+    {
+        string Name;
+        vector<unique_ptr<Expr>> Args;
+
+    public:
+        FunctionCall(string Name, vector<unique_ptr<Expr>> Args);
+        const string &GetName();
+        const vector<unique_ptr<Expr>> &GetArgs();
+        void Print(string Prefix) override;
+        Value *Gen(CodeGen *Generator) override;
+    };
+
+    class VariableRef : public Expr
+    {
+        string Name;
+
+    public:
+        VariableRef(string Name);
+        const string &GetName();
+        void Print(string Prefix) override;
+        Value *Gen(CodeGen *Generator) override;
+    };
+}
+
 using namespace ast;
 
-class CodeGen {
-    std::unique_ptr<LLVMContext> TheContext;
-    std::unique_ptr<Module> TheModule;
-    std::unique_ptr<IRBuilder<>> Builder;
-    std::map<std::string, AllocaInst *> NamedValues;
-    ExitOnError ExitOnErr;
+class CodeGen
+{
+    unique_ptr<LLVMContext> TheContext;
+    unique_ptr<Module> TheModule;
+    unique_ptr<IRBuilder<>> Builder;
+    map<string, AllocaInst *> NamedValues;
+    vector<unique_ptr<FunctionDefinition>> FunctionDefs;
+    string TargetTriple;
+    TargetMachine *TargetMachine;
+    AllocaInst *CreateEntryBlockAlloca(Function *TheFunction, StringRef VarName);
+    Function *LoadFunction(string Name);
+
 public:
-    Value *GenNumberLiteral(NumberLiteral Num);
-    Value *GenVariableDefinition(VariableDefinition Var);
-    Value *GenFunctionDefinition(FunctionDefinition Func);
-    Value *GenChainExpression(ChainExpression Chain);
-    Value *GenBinaryOperation(BinaryOperation Bin);
-    Value *GenWhenExpression(WhenExpression When);
-    Value *GenFunctionCall(FunctionCall Call);
-    Value *GenVariableRef(VariableRef Ref);
+    CodeGen(string TargetTriple, TargetMachine *TargetMachine);
+    int RunPass();
+
+    Value *GenNumberLiteral(NumberLiteral *Num);
+    Value *GenStringLiteral(ast::StringLiteral *String);
+    Value *GenVariableDefinition(VariableDefinition *Var);
+    Function *GenFunctionDefinition(FunctionDefinition *Func);
+    Value *GenChainExpression(ChainExpression *Chain);
+    Value *GenBinaryOperation(BinaryOperation *Bin);
+    Value *GenWhenExpression(WhenExpression *When);
+    Value *GenFunctionCall(FunctionCall *Call);
+    Value *GenVariableRef(VariableRef *Ref);
 };
 
 #endif

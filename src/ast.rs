@@ -15,25 +15,22 @@ pub enum Expr {
     VariableRef(String),
 }
 
-fn map_vec<T: Clone, U>(from: Vec<T>, f: fn(T) -> U) -> (*mut U, usize) {
-    let mut converted: Vec<U> = from.clone().into_iter().map(f).collect();
-    let ptr = converted.as_mut_ptr();
+fn map_vec<T: Clone, U>(from: Vec<T>, f: fn(T) -> U) -> (*const U, usize) {
+    let converted: Vec<U> = from.clone().into_iter().map(f).collect();
+    let ptr = converted.as_ptr();
     std::mem::forget(converted);
     (ptr, from.len())
 }
 
-pub fn convert_vec(from: Vec<Expr>) -> (*mut FFISafeExpr, usize) {
+pub fn convert_vec(from: Vec<Expr>) -> (*const FFISafeExpr, usize) {
     map_vec(from, |e| convert_expr(e))
 }
 
 fn convert_str_vec(from: Vec<String>) -> (*const *const c_char, usize) {
-    let vec: Vec<*const c_char> = from.clone().into_iter().map(|s| convert_str(s)).collect();
-    let ptr = vec.as_ptr();
-    std::mem::forget(vec);
-    (ptr, from.len())
+    map_vec(from, |s| convert_str(s))
 }
 
-fn convert_box(from: Box<Expr>) -> *mut FFISafeExpr {
+fn convert_box(from: Box<Expr>) -> *const FFISafeExpr {
     Box::into_raw(convert_expr(*from).into())
 }
 
@@ -81,17 +78,17 @@ pub fn convert_expr(expr: Expr) -> FFISafeExpr {
 pub enum FFISafeExpr {
     NumberLiteral(bool, isize, f64),
     StringLiteral(*const c_char),
-    VariableDefinition(*const c_char, *mut FFISafeExpr),
-    FunctionDefinition(*const c_char, *const *const c_char, usize, *mut FFISafeExpr),
-    ChainExpression(*mut FFISafeExpr, usize),
-    BinaryOperation(u8, *mut FFISafeExpr, *mut FFISafeExpr),
-    WhenExpression(*mut FFISafeExpr, *mut FFISafeExpr),
-    FunctionCall(*const c_char, *mut FFISafeExpr, usize),
+    VariableDefinition(*const c_char, *const FFISafeExpr),
+    FunctionDefinition(*const c_char, *const *const c_char, usize, *const FFISafeExpr),
+    ChainExpression(*const FFISafeExpr, usize),
+    BinaryOperation(u8, *const FFISafeExpr, *const FFISafeExpr),
+    WhenExpression(*const FFISafeExpr, *const FFISafeExpr),
+    FunctionCall(*const c_char, *const FFISafeExpr, usize),
     VariableRef(*const c_char),
 }
 
 #[repr(C)]
 pub struct FFISafeExprVec {
-    pub ptr: *mut FFISafeExpr,
+    pub ptr: *const FFISafeExpr,
     pub len: usize,
 }
