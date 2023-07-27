@@ -22,4 +22,5 @@ _deps
 
 .vscode/
 
-main.o
+test.o
+test/test

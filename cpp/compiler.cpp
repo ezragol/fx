@@ -24,8 +24,8 @@ int Compile(string OutFile)
     CodeGen Generator(TargetTriple, TargetMachine);
     FFISafeExprVec Tokens = recieve_tokens();
     auto Tree = ReGenerateAST(Tokens);
-
-    // PrintAST(Tree);
+    
+    PrintAST(Tree);
     for (auto &branch : Tree)
     {
         branch->Gen(&Generator);

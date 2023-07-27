@@ -11,3 +11,9 @@ use cbindgen (with cbindgen.toml)
 
 # tests
 - see performance of ffi interface (C++ side) of not using std::move vs. using std::move
+
+# it sort of works
+issues:
+- function calls = segfault
+- "chain expressions" (im gonna rename at some point) = segfault
+- :D

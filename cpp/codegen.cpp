@@ -6,7 +6,7 @@ CodeGen::CodeGen(string TargetTriple, class TargetMachine *TargetMachine)
     TheContext = make_unique<LLVMContext>();
     TheModule = make_unique<Module>("fx", *TheContext);
     Builder = make_unique<IRBuilder<>>(*TheContext);
-    
+
     TheModule->setTargetTriple(TargetTriple);
     TheModule->setDataLayout(TargetMachine->createDataLayout());
 }
@@ -185,7 +185,6 @@ Value *CodeGen::GenBinaryOperation(BinaryOperation *Bin)
     if (!Left || !Right)
     {
         cout << "error inside binary operator!\n";
-        Bin->Print("");
         return nullptr;
     }
 
