@@ -4,6 +4,7 @@ extern double fib(double);
 
 int main()
 {
-    int n = 10;
-    printf("fib %d = %f\n", n, fib((float) n));
+    for (int n = 0; n < 10; n++) {
+        printf("fib %d = %f\n", n, fib((float) n));
+    }
 }
