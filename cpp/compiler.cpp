@@ -24,8 +24,8 @@ int Compile(string OutFile)
     CodeGen Generator(TargetTriple, TargetMachine);
     FFISafeExprVec Tokens = recieve_tokens();
     auto Tree = ReGenerateAST(Tokens);
-    
-    PrintAST(Tree);
+    drop_all(Tokens.ptr, Tokens.len);
+
     for (auto &branch : Tree)
     {
         branch->Gen(&Generator);
@@ -34,5 +34,6 @@ int Compile(string OutFile)
     if (Generator.RunPass(OutFile))
         return 1;
 
+    delete TargetMachine;
     return 0;
 }

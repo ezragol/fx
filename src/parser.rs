@@ -1,7 +1,4 @@
-use std::{
-    fs::File,
-    io::BufReader,
-};
+use std::{fs::File, io::BufReader};
 
 use crate::err;
 
@@ -24,10 +21,7 @@ impl Parser {
     }
 
     pub fn from_tree(tokens: Vec<Token>) -> Parser {
-        Parser {
-            tokens,
-            index: 0,
-        }
+        Parser { tokens, index: 0 }
     }
 
     fn basic_op_prec(symbol: Symbol) -> Option<u8> {
@@ -92,13 +86,6 @@ impl Parser {
                 Parser::parse_def_args(args)?,
                 self.parse_expr_or_err()?.into(),
             )),
-            Token::Symbol(Symbol::Equals) => {
-                self.back();
-                Ok(Expr::VariableDefinition(
-                    identifier,
-                    self.parse_expr_or_err()?.into(),
-                ))
-            }
             _ => Err(DeclarationError.into()),
         }
     }
@@ -234,13 +221,13 @@ impl Parser {
             Token::String(s) => Some(Expr::StringLiteral(s)),
             Token::Grouping(tokens) => Parser::parse_grouping(tokens, true),
             // fix
-            Token::FunctionCall(name, tokens) => Some(
-                if let Ok(args) = Parser::parse_chain(tokens, false) {
+            Token::FunctionCall(name, tokens) => {
+                Some(if let Ok(args) = Parser::parse_chain(tokens, false) {
                     Expr::FunctionCall(name, args)
                 } else {
                     Expr::FunctionCall(name, vec![])
-                },
-            ),
+                })
+            }
             _ => None,
         }
     }
@@ -334,8 +321,9 @@ impl Parser {
                 .collect();
 
             return Some(Expr::WhenExpression(
+                self.branch(tokens[when_index + 1..].to_vec(), right)?
+                    .into(),
                 self.branch(tokens[..when_index].to_vec(), left)?.into(),
-                self.branch(tokens[when_index + 1..].to_vec(), right)?.into(),
             ));
         } else {
             self.branch(tokens, op_indexes)

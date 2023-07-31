@@ -104,28 +104,6 @@ Value *CodeGen::GenStringLiteral(ast::StringLiteral *String)
     return ConstantFP::get(*TheContext, APFloat(0.0));
 }
 
-// get rid of
-Value *CodeGen::GenVariableDefinition(VariableDefinition *Var)
-{
-    Function *Parent = Builder->GetInsertBlock()->getParent();
-    string Name = Var->GetName();
-    auto PreDefined = NamedValues.find(Name);
-    AllocaInst *Alloca;
-
-    if (PreDefined == NamedValues.end())
-    {
-        Alloca = CreateEntryBlockAlloca(Parent, Name);
-    }
-    else
-    {
-        Alloca = NamedValues[Name];
-    }
-
-    Value *Val = Var->GetDefinition()->Gen(this);
-    Builder->CreateStore(Val, Alloca);
-    return Val;
-}
-
 Value *CodeGen::NestChainExpression(ChainExpression *Chain, int Index)
 {
     const unique_ptr<WhenExpression> &When = Chain->GetExpressions()[Index];
@@ -324,30 +302,6 @@ Value *ast::StringLiteral::Gen(CodeGen *Generator)
     return Generator->GenStringLiteral(this);
 }
 
-VariableDefinition::VariableDefinition(string Name, unique_ptr<Expr> Definition)
-    : Name(Name), Definition(move(Definition)) {}
-
-const string &VariableDefinition::GetName()
-{
-    return Name;
-}
-
-const unique_ptr<Expr> &VariableDefinition::GetDefinition()
-{
-    return Definition;
-}
-
-void VariableDefinition::Print(string Prefix)
-{
-    cout << Prefix << "let " << Name << " = ";
-    Definition->Print(Prefix);
-}
-
-Value *VariableDefinition::Gen(CodeGen *Generator)
-{
-    return Generator->GenVariableDefinition(this);
-}
-
 FunctionDefinition::FunctionDefinition(string Name, vector<string> Args, unique_ptr<Expr> Body)
     : Name(Name), Args(Args), Body(move(Body)) {}
 
@@ -444,19 +398,18 @@ Value *BinaryOperation::Gen(CodeGen *Generator)
     return Generator->GenBinaryOperation(this);
 }
 
-WhenExpression::WhenExpression(unique_ptr<Expr> Result, unique_ptr<Expr> Predicate)
-    : Result(move(Result)), Predicate(move(Predicate)) {}
-
-const unique_ptr<Expr> &WhenExpression::GetResult()
-{
-    return Result;
-}
+WhenExpression::WhenExpression(unique_ptr<Expr> Predicate, unique_ptr<Expr> Result)
+    : Predicate(move(Predicate)), Result(move(Result)) {}
 
 const unique_ptr<Expr> &WhenExpression::GetPredicate()
 {
     return Predicate;
 }
 
+const unique_ptr<Expr> &WhenExpression::GetResult()
+{
+    return Result;
+}
 void WhenExpression::Print(string Prefix)
 {
     cout << Prefix << "when {\n";

@@ -2,6 +2,7 @@
 #define __COMPILER_H
 
 #include <string>
+#include <stdlib.h>
 
 #include "interface.h"
 

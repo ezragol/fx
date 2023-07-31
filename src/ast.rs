@@ -1,17 +1,22 @@
-// pub trait Expression: std::fmt::Debug {}
-
 use std::ffi::{c_char, CString};
 
 #[derive(Debug, Clone)]
 pub enum Expr {
+    // is floating?, value (if int), value (if float)
     NumberLiteral(bool, isize, f64),
+    // string literal value
     StringLiteral(String),
-    VariableDefinition(String, Box<Expr>),
+    // function name, argument names, function body
     FunctionDefinition(String, Vec<String>, Box<Expr>),
+    // chain links -> when expressions as base cases, and finally a recursive expression
     ChainExpression(Vec<Expr>),
+    // binary op as unsigned int, left, right
     BinaryOperation(u8, Box<Expr>, Box<Expr>),
+    // predicate, result
     WhenExpression(Box<Expr>, Box<Expr>),
+    // function name, argument values
     FunctionCall(String, Vec<Expr>),
+    // variable name
     VariableRef(String),
 }
 
@@ -43,9 +48,6 @@ pub fn convert_expr(expr: Expr) -> FFISafeExpr {
     match expr {
         Expr::NumberLiteral(is_f, int, float) => FFISafeExpr::NumberLiteral(is_f, int, float),
         Expr::StringLiteral(src) => FFISafeExpr::StringLiteral(convert_str(src)),
-        Expr::VariableDefinition(name, value) => {
-            FFISafeExpr::VariableDefinition(convert_str(name), convert_box(value))
-        }
         Expr::FunctionDefinition(name, args, body) => {
             let arg_vec = convert_str_vec(args);
             FFISafeExpr::FunctionDefinition(
@@ -62,8 +64,8 @@ pub fn convert_expr(expr: Expr) -> FFISafeExpr {
         Expr::BinaryOperation(op, left, right) => {
             FFISafeExpr::BinaryOperation(op, convert_box(left), convert_box(right))
         }
-        Expr::WhenExpression(result, predicate) => {
-            FFISafeExpr::WhenExpression(convert_box(result), convert_box(predicate))
+        Expr::WhenExpression(predicate, result) => {
+            FFISafeExpr::WhenExpression(convert_box(predicate), convert_box(result))
         }
         Expr::FunctionCall(name, args) => {
             let arg_vec = convert_vec(args);
@@ -76,14 +78,21 @@ pub fn convert_expr(expr: Expr) -> FFISafeExpr {
 #[repr(C)]
 #[derive(Debug)]
 pub enum FFISafeExpr {
+    // is floating?, value (if int), value (if float)
     NumberLiteral(bool, isize, f64),
+    // string literal value
     StringLiteral(*const c_char),
-    VariableDefinition(*const c_char, *const FFISafeExpr),
+    // function name, function args start pointer, function args length, function body
     FunctionDefinition(*const c_char, *const *const c_char, usize, *const FFISafeExpr),
+    // chain links start pointer, chain length
     ChainExpression(*const FFISafeExpr, usize),
+    // binary op as unsigned int, left, right
     BinaryOperation(u8, *const FFISafeExpr, *const FFISafeExpr),
+    // predicate, result
     WhenExpression(*const FFISafeExpr, *const FFISafeExpr),
+    // function name, argument values start pointer, argument values length
     FunctionCall(*const c_char, *const FFISafeExpr, usize),
+    // variable name
     VariableRef(*const c_char),
 }
 

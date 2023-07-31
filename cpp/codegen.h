@@ -70,19 +70,6 @@ namespace ast
         Value *Gen(CodeGen *Generator) override;
     };
 
-    class VariableDefinition : public Expr
-    {
-        string Name;
-        unique_ptr<Expr> Definition;
-
-    public:
-        VariableDefinition(string Name, unique_ptr<Expr> Definition);
-        const string &GetName();
-        const unique_ptr<Expr> &GetDefinition();
-        void Print(string Prefix) override;
-        Value *Gen(CodeGen *Generator) override;
-    };
-
     class FunctionDefinition : public Expr
     {
         string Name;
@@ -115,13 +102,13 @@ namespace ast
 
     class WhenExpression : public Expr
     {
-        unique_ptr<Expr> Result;
         unique_ptr<Expr> Predicate;
+        unique_ptr<Expr> Result;
 
     public:
-        WhenExpression(unique_ptr<Expr> Result, unique_ptr<Expr> Predicate);
-        const unique_ptr<Expr> &GetResult();
+        WhenExpression(unique_ptr<Expr> Predicate, unique_ptr<Expr> Result);
         const unique_ptr<Expr> &GetPredicate();
+        const unique_ptr<Expr> &GetResult();
         void Print(string Prefix) override;
         Value *Gen(CodeGen *Generator) override;
     };
@@ -185,7 +172,6 @@ public:
 
     Value *GenNumberLiteral(NumberLiteral *Num);
     Value *GenStringLiteral(ast::StringLiteral *String);
-    Value *GenVariableDefinition(VariableDefinition *Var);
     Function *GenFunctionDefinition(FunctionDefinition *Func);
     Value *GenChainExpression(ChainExpression *Chain);
     Value *GenBinaryOperation(BinaryOperation *Bin);

@@ -16,7 +16,7 @@ macro_rules! def {
     };
 }
 
-def!(DeclarationError, "expected declaration!");
+def!(DeclarationError, "expected function declaration!");
 def!(RangeError, "improperly formatted range!");
 def!(EofError, "unexpected end of file!");
 def!(IdentifierError, "expected identifier!");
