@@ -32,11 +32,11 @@ pub extern "C" fn recieve_tokens() -> FFISafeExprVec {
     return ffi_safe;
 }
 
-unsafe fn box_drop<T>(ffi_val: *const T) {
-    drop(Box::from_raw(ffi_val.cast_mut()));
+unsafe fn box_drop<T>(ffi_val: *mut T) {
+    drop(Box::from_raw(ffi_val));
 }
 
-unsafe fn drop_expr(expr: *const FFISafeExpr) {
+unsafe fn drop_expr(expr: &FFISafeExpr) {
     match *expr {
         FFISafeExpr::StringLiteral(s) => {
             box_drop(s);
@@ -44,21 +44,21 @@ unsafe fn drop_expr(expr: *const FFISafeExpr) {
         FFISafeExpr::FunctionDefinition(name, arg_start, len, body) => {
             let args = std::slice::from_raw_parts(arg_start, len);
             box_drop(name);
-            for arg in args {
+            for &arg in args {
                 box_drop(arg);
             }
-            drop_expr(body);
+            box_drop(arg_start);
+            drop_expr(body.as_ref().unwrap());
+            box_drop(body);
         }
         FFISafeExpr::ChainExpression(chain_start, len) => {
             drop_all(chain_start, len);
         }
-        FFISafeExpr::BinaryOperation(_, left, right) => {
-            drop_expr(left);
-            drop_expr(right);
-        }
-        FFISafeExpr::WhenExpression(predicate, result) => {
-            drop_expr(predicate);
-            drop_expr(result);
+        FFISafeExpr::BinaryOperation(_, left, right) | FFISafeExpr::WhenExpression(left, right) => {
+            drop_expr(left.as_ref().unwrap());
+            drop_expr(right.as_ref().unwrap());
+            box_drop(left);
+            box_drop(right);
         }
         FFISafeExpr::FunctionCall(name, arg_start, len) => {
             box_drop(name);
@@ -69,13 +69,13 @@ unsafe fn drop_expr(expr: *const FFISafeExpr) {
         }
         _ => {}
     }
-    box_drop(expr);
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn drop_all(start: *const FFISafeExpr, len: usize) {
-    let arr = std::slice::from_raw_parts(start, len);
-    for expr in arr {
+pub unsafe extern "C" fn drop_all(start: *mut FFISafeExpr, len: usize) {
+    let arr = Box::from_raw(std::slice::from_raw_parts_mut(start, len));
+    for expr in arr.iter() {
         drop_expr(expr);
     }
+    
 }

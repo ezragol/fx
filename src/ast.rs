@@ -20,26 +20,26 @@ pub enum Expr {
     VariableRef(String),
 }
 
-fn map_vec<T: Clone, U>(from: Vec<T>, f: fn(T) -> U) -> (*const U, usize) {
-    let converted: Vec<U> = from.clone().into_iter().map(f).collect();
-    let ptr = converted.as_ptr();
+fn map_vec<T: Clone, U>(from: Vec<T>, f: fn(T) -> U) -> (*mut U, usize) {
+    let mut converted: Vec<U> = from.clone().into_iter().map(f).collect();
+    let ptr = converted.as_mut_ptr();
     std::mem::forget(converted);
     (ptr, from.len())
 }
 
-pub fn convert_vec(from: Vec<Expr>) -> (*const FFISafeExpr, usize) {
+pub fn convert_vec(from: Vec<Expr>) -> (*mut FFISafeExpr, usize) {
     map_vec(from, |e| convert_expr(e))
 }
 
-fn convert_str_vec(from: Vec<String>) -> (*const *const c_char, usize) {
+fn convert_str_vec(from: Vec<String>) -> (*mut *mut c_char, usize) {
     map_vec(from, |s| convert_str(s))
 }
 
-fn convert_box(from: Box<Expr>) -> *const FFISafeExpr {
+fn convert_box(from: Box<Expr>) -> *mut FFISafeExpr {
     Box::into_raw(convert_expr(*from).into())
 }
 
-fn convert_str(from: String) -> *const c_char {
+fn convert_str(from: String) -> *mut c_char {
     let cstr = CString::new(from).unwrap();
     return cstr.into_raw();
 }
@@ -81,23 +81,23 @@ pub enum FFISafeExpr {
     // is floating?, value (if int), value (if float)
     NumberLiteral(bool, isize, f64),
     // string literal value
-    StringLiteral(*const c_char),
+    StringLiteral(*mut c_char),
     // function name, function args start pointer, function args length, function body
-    FunctionDefinition(*const c_char, *const *const c_char, usize, *const FFISafeExpr),
+    FunctionDefinition(*mut c_char, *mut *mut c_char, usize, *mut FFISafeExpr),
     // chain links start pointer, chain length
-    ChainExpression(*const FFISafeExpr, usize),
+    ChainExpression(*mut FFISafeExpr, usize),
     // binary op as unsigned int, left, right
-    BinaryOperation(u8, *const FFISafeExpr, *const FFISafeExpr),
+    BinaryOperation(u8, *mut FFISafeExpr, *mut FFISafeExpr),
     // predicate, result
-    WhenExpression(*const FFISafeExpr, *const FFISafeExpr),
+    WhenExpression(*mut FFISafeExpr, *mut FFISafeExpr),
     // function name, argument values start pointer, argument values length
-    FunctionCall(*const c_char, *const FFISafeExpr, usize),
+    FunctionCall(*mut c_char, *mut FFISafeExpr, usize),
     // variable name
-    VariableRef(*const c_char),
+    VariableRef(*mut c_char),
 }
 
 #[repr(C)]
 pub struct FFISafeExprVec {
-    pub ptr: *const FFISafeExpr,
+    pub ptr: *mut FFISafeExpr,
     pub len: usize,
 }
