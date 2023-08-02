@@ -32,6 +32,9 @@ int CodeGen::RunPass(string OutFile)
 
     Pass.run(*TheModule);
     Dest.flush();
+
+    TheModule->print(errs(), nullptr);
+
     return 0;
 }
 
@@ -104,54 +107,71 @@ Value *CodeGen::GenStringLiteral(ast::StringLiteral *String)
     return ConstantFP::get(*TheContext, APFloat(0.0));
 }
 
-Value *CodeGen::NestChainExpression(ChainExpression *Chain, int Index)
+Value *CodeGen::GetPredFCmp(const unique_ptr<WhenExpression> &When)
 {
-    const unique_ptr<WhenExpression> &When = Chain->GetExpressions()[Index];
-    Function *Parent = Builder->GetInsertBlock()->getParent();
     Value *Predicate = When->GetPredicate()->Gen(this);
-    Value *Result = When->GetResult()->Gen(this);
-
-    if (!Predicate || !Result)
-    {
-        cout << "Missing result or predicate!\n";
+    if (!Predicate)
         return nullptr;
-    }
-
-    Predicate = Builder->CreateFCmpONE(
-      Predicate, ConstantFP::get(*TheContext, APFloat(0.0)), "ifcond");
-
-    BasicBlock *Current = BasicBlock::Create(*TheContext, "then", Parent);
-    BasicBlock *Next = BasicBlock::Create(*TheContext, "else");
-    BasicBlock *Merge = BasicBlock::Create(*TheContext, "ifcont");
-
-    Builder->CreateCondBr(Predicate, Current, Next);
-    Builder->SetInsertPoint(Current);
-    Builder->CreateBr(Merge);
-    Current = Builder->GetInsertBlock();
-
-    Parent->insert(Parent->end(), Next);
-    Builder->SetInsertPoint(Next);
-    Value *NextResult;
-
-    if (Index < Chain->GetExpressions().size() - 1)
-        NextResult = NestChainExpression(Chain, Index + 1);
-    else
-        NextResult = Chain->GetLast()->Gen(this);
-    Builder->CreateBr(Merge);
-    Next = Builder->GetInsertBlock();
-
-    Parent->insert(Parent->end(), Merge);
-    Builder->SetInsertPoint(Merge);
-    PHINode *Phi = Builder->CreatePHI(Type::getDoubleTy(*TheContext), 2, "iftmp");
-    Phi->addIncoming(Result, Current);
-    Phi->addIncoming(NextResult, Next);
-    return Phi;
+    return Builder->CreateFCmpONE(Predicate, ConstantFP::get(*TheContext, APFloat(0.0)), "ifcond");
 }
 
 // todo
 Value *CodeGen::GenChainExpression(ChainExpression *Chain)
 {
-    return NestChainExpression(Chain, 0);
+    Function *Parent = Builder->GetInsertBlock()->getParent();
+    BasicBlock *Last = BasicBlock::Create(*TheContext, "then", Parent);
+    BasicBlock *Next = BasicBlock::Create(*TheContext, "else");
+    BasicBlock *Merge = BasicBlock::Create(*TheContext, "ifcont");
+
+    vector<BasicBlock *> Blocks;
+    vector<Value *> Results;
+
+    auto &FirstW = Chain->GetExpressions()[0];
+    Value *FirstP = GetPredFCmp(FirstW);
+    if (!FirstP)
+        return nullptr;
+    Builder->CreateCondBr(FirstP, Last, Next);
+
+    int i = 0;
+    for (auto &When : Chain->GetExpressions())
+    {
+        if (i == 0) {
+            i = 1;
+            continue;
+        }
+        
+        Builder->SetInsertPoint(Last);
+        Value *Result = When->GetResult()->Gen(this);
+        if (!Result)
+            return nullptr;
+
+        Last = Builder->GetInsertBlock();
+        Value *Predicate = GetPredFCmp(When);
+        if (!Predicate)
+            return nullptr;
+
+        Last = Builder->GetInsertBlock();
+        Builder->CreateCondBr(Predicate, Merge, Next);
+
+        Blocks.push_back(Last);
+        Results.push_back(Result);
+        Last = Next;
+        Parent->insert(Parent->end(), Last);
+        Next = BasicBlock::Create(*TheContext, "else");
+    }
+
+    Parent->insert(Parent->end(), Merge);
+    Builder->SetInsertPoint(Merge);
+
+    PHINode *Phi = Builder->CreatePHI(Type::getDoubleTy(*TheContext), 2, "iftmp");
+
+    int j = 0;
+    for (auto Block : Blocks)
+    {
+        Phi->addIncoming(Results[j++], Block);
+    }
+
+    return Phi;
 }
 
 // todo

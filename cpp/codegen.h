@@ -164,7 +164,7 @@ class CodeGen
     TargetMachine *TargetMachine;
     AllocaInst *CreateEntryBlockAlloca(Function *TheFunction, StringRef VarName);
     Function *LoadFunction(string Name);
-    Value *NestChainExpression(ChainExpression *When, int Index);
+    Value *GetPredFCmp(const unique_ptr<WhenExpression> &When);
 
 public:
     CodeGen(string TargetTriple, class TargetMachine *TargetMachine);
