@@ -30,10 +30,10 @@ int CodeGen::RunPass(string OutFile)
         return 1;
     }
 
+    TheModule->print(errs(), nullptr);
+
     Pass.run(*TheModule);
     Dest.flush();
-
-    TheModule->print(errs(), nullptr);
 
     return 0;
 }
@@ -52,6 +52,7 @@ Function *CodeGen::LoadFunction(string Name)
     {
         return Fn;
     }
+    cout << "can't find function!\n";
     return nullptr;
 }
 
@@ -98,6 +99,7 @@ Function *CodeGen::GenFunctionDefinition(FunctionDefinition *Def)
     }
 
     Fn->eraseFromParent();
+    cout << "missing return val!\n";
     return nullptr;
 }
 
@@ -111,64 +113,88 @@ Value *CodeGen::GetPredFCmp(const unique_ptr<WhenExpression> &When)
 {
     Value *Predicate = When->GetPredicate()->Gen(this);
     if (!Predicate)
+    {
+        cout << "missing predicate!\n";
         return nullptr;
+    }
     return Builder->CreateFCmpONE(Predicate, ConstantFP::get(*TheContext, APFloat(0.0)), "ifcond");
 }
 
 // todo
 Value *CodeGen::GenChainExpression(ChainExpression *Chain)
 {
-    Function *Parent = Builder->GetInsertBlock()->getParent();
-    BasicBlock *Last = BasicBlock::Create(*TheContext, "then", Parent);
-    BasicBlock *Next = BasicBlock::Create(*TheContext, "else");
-    BasicBlock *Merge = BasicBlock::Create(*TheContext, "ifcont");
-
     vector<BasicBlock *> Blocks;
     vector<Value *> Results;
 
-    auto &FirstW = Chain->GetExpressions()[0];
-    Value *FirstP = GetPredFCmp(FirstW);
-    if (!FirstP)
-        return nullptr;
-    Builder->CreateCondBr(FirstP, Last, Next);
-
-    int i = 0;
-    for (auto &When : Chain->GetExpressions())
+    Value *Predicate = GetPredFCmp(Chain->GetExpressions()[0]);
+    if (!Predicate)
     {
-        if (i == 0) {
-            i = 1;
-            continue;
-        }
-        
-        Builder->SetInsertPoint(Last);
-        Value *Result = When->GetResult()->Gen(this);
+        cout << "missing predicate!\n";
+        return nullptr;
+    }
+
+    Function *Parent = Builder->GetInsertBlock()->getParent();
+    BasicBlock *Current = BasicBlock::Create(*TheContext, "then", Parent);
+    BasicBlock *Split = BasicBlock::Create(*TheContext, "else", Parent);
+    BasicBlock *Merge = BasicBlock::Create(*TheContext, "ifcont");
+
+    Builder->CreateCondBr(Predicate, Current, Split);
+
+    const vector<unique_ptr<WhenExpression>> &Exprs = Chain->GetExpressions();
+    for (int j = 1; j <= Exprs.size(); j++)
+    {
+        auto &When = Exprs[j];
+        auto &Last = Exprs[j - 1];
+        Builder->SetInsertPoint(Current);
+        Value *Result = Last->GetResult()->Gen(this);
         if (!Result)
+        {
+            cout << "missing result!\n";
             return nullptr;
+        }
 
-        Last = Builder->GetInsertBlock();
-        Value *Predicate = GetPredFCmp(When);
-        if (!Predicate)
-            return nullptr;
+        Builder->CreateBr(Merge);
+        Current = Builder->GetInsertBlock();
 
-        Last = Builder->GetInsertBlock();
-        Builder->CreateCondBr(Predicate, Merge, Next);
-
-        Blocks.push_back(Last);
+        Blocks.push_back(Current);
         Results.push_back(Result);
-        Last = Next;
-        Parent->insert(Parent->end(), Last);
-        Next = BasicBlock::Create(*TheContext, "else");
+
+        Builder->SetInsertPoint(Split);
+        if (j < Exprs.size())
+        {
+            Predicate = GetPredFCmp(When);
+            if (!Predicate)
+            {
+                cout << "missing predicate!\n";
+                return nullptr;
+            }
+            Current = BasicBlock::Create(*TheContext, "then", Parent);
+            Split = BasicBlock::Create(*TheContext, "else", Parent);
+
+            Builder->CreateCondBr(Predicate, Current, Split);
+        }
+        else
+        {
+            Value *Final = Chain->GetLast()->Gen(this);
+            if (!Final)
+            {
+                cout << "missing result!\n";
+                return nullptr;
+            }
+            Builder->CreateBr(Merge);
+            Blocks.push_back(Split);
+            Results.push_back(Final);
+        }
     }
 
     Parent->insert(Parent->end(), Merge);
     Builder->SetInsertPoint(Merge);
-
     PHINode *Phi = Builder->CreatePHI(Type::getDoubleTy(*TheContext), 2, "iftmp");
 
-    int j = 0;
+    int i = 0;
     for (auto Block : Blocks)
     {
-        Phi->addIncoming(Results[j++], Block);
+        Phi->addIncoming(Results[i++], Block);
     }
 
     return Phi;
@@ -253,7 +279,10 @@ Value *CodeGen::GenFunctionCall(FunctionCall *Call)
     {
         Argv.push_back(Call->GetArgs()[i]->Gen(this));
         if (!Argv.back())
+        {
+            cout << "missing args!\n";
             return nullptr;
+        }
     }
 
     return Builder->CreateCall(Fn, Argv, "calltmp");
