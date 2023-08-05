@@ -1,27 +1,26 @@
 #!/bin/bash
 
-echo "-> building all components"
-echo
+function fx_echo() {
+    echo
+    echo "$1"
+}
 
-echo "-> building rust components"
+echo "-> building all components"
+
+fx_echo "-> building rust components"
 if cargo build ; then
-    echo "-> configuring c++ components"
+    fx_echo "-> configuring c++ components"
     if cmake build -B build -DLLVM_TARGETS_TO_BUILD=x86 ; then
-        echo "-> entering build directory"
+        fx_echo "-> entering build directory"
         cd build
         echo "-> building c++ components"
         if ninja ; then
-            echo
-            echo "<- done"
-        else
-            echo "<- exiting"
-            exit 1
+            fx_echo "<- done"
+            exit 0
         fi
-    else
-        echo "<- exiting"
-        exit 1 
     fi
-else
-    echo "<- exiting"
-    exit 1
 fi
+
+echo
+echo "<- exiting"
+exit 1

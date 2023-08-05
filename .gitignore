@@ -23,4 +23,5 @@ _deps
 .vscode/
 
 test.o
+test.bc
 test/test

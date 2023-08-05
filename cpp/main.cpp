@@ -2,5 +2,5 @@
 
 int main()
 {
-    Compile("test.o");
+    Compile("test.bc");
 }

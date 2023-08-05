@@ -13,7 +13,6 @@ CodeGen::CodeGen(string TargetTriple, class TargetMachine *TargetMachine)
 
 int CodeGen::RunPass(string OutFile)
 {
-    legacy::PassManager Pass;
     auto FileType = CGFT_ObjectFile;
     std::error_code EC;
     raw_fd_ostream Dest(OutFile, EC, sys::fs::OF_None);
@@ -24,16 +23,27 @@ int CodeGen::RunPass(string OutFile)
         return 1;
     }
 
-    if (TargetMachine->addPassesToEmitFile(Pass, Dest, nullptr, FileType))
-    {
-        errs() << "TargetMachine can't emit a file of this type";
-        return 1;
-    }
+    LoopAnalysisManager LAM;
+    FunctionAnalysisManager FAM;
+    CGSCCAnalysisManager CGAM;
+    ModuleAnalysisManager MAM;
+    PassBuilder PB(TargetMachine);
+
+    PB.registerModuleAnalyses(MAM);
+    PB.registerCGSCCAnalyses(CGAM);
+    PB.registerFunctionAnalyses(FAM);
+    PB.registerLoopAnalyses(LAM);
+    PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+
+    ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(OptimizationLevel::O2);
+    MPM.addPass()
+
+    MPM.run(*TheModule, MAM);
+
+    WriteBitcodeToFile(*TheModule, Dest);
+    Dest.flush();
 
     TheModule->print(errs(), nullptr);
-
-    Pass.run(*TheModule);
-    Dest.flush();
 
     return 0;
 }

@@ -77,5 +77,4 @@ pub unsafe extern "C" fn drop_all(start: *mut FFISafeExpr, len: usize) {
     for expr in arr.iter() {
         drop_expr(expr);
     }
-    
 }

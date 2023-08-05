@@ -4,7 +4,8 @@ extern double fib(double);
 
 int main()
 {
-    for (int n = 0; n < 10; n++) {
-        printf("fib %d = %f\n", n, fib((float) n));
-    }
+    printf("fib 50 = %f\n", fib(50.0));
+    // for (int n = 0; n < 10; n++) {
+    //     printf("fac %d = %f\n", n, factorial((float) n));
+    // }
 }

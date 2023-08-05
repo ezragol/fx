@@ -27,7 +27,8 @@ llvm_map_components_to_libnames(llvm_libs
         interpreter
         mc
         nativecodegen
-        x86asmparser)
+        x86asmparser
+        passes)
 
 target_link_libraries(fx PUBLIC ${llvm_libs} ${LIB_FX_PATH})
 

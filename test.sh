@@ -1,24 +1,35 @@
 #!/bin/bash
 
-echo "-> creating test"
-echo
-if ./build.sh ; then
+function fx_echo() {
     echo
-    echo "-> entering test folder"
+    echo "$1"
+}
+
+function build_test_exec {
+    fx_echo "-> building test objects"
+    if llc -filetype=obj test.bc ;  then
+        fx_echo "<- building test executable"
+        if clang -o test test.c test.o ; then
+            fx_echo "<- done"
+            exit 0
+        fi
+    fi
+}
+
+echo "-> creating test"
+if ./build.sh ; then
+    fx_echo "-> entering test folder"
     cd test
     echo "-> compiling test object"
-    if valgrind --tool=memcheck --leak-check=full ../build/fx ; then
-        echo "-> building test executable"
-        clang test.c test.o -o test
-        echo
-        echo "<- done"
+    if [ "$1" = "valgrind" ] ; then
+        CONTINUE=$(valgrind --tool=memcheck --leak-check=full ../build/fx)
     else
-        echo
-        echo "<- exiting"
-        exit 1
+        CONTINUE=$(../build/fx)
     fi
-else
-    echo
-    echo "<- exiting"
-    exit 1
+    if [ CONTINUE ] ; then
+        build_test_exec
+    fi
 fi
+
+fx_echo "<- exiting"
+exit 1
