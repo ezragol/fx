@@ -1,11 +1,10 @@
 #include <stdio.h>
 
-extern double fib(double);
+extern double mod(double, double);
 
 int main()
 {
-    printf("fib 50 = %f\n", fib(50.0));
-    // for (int n = 0; n < 10; n++) {
-    //     printf("fac %d = %f\n", n, factorial((float) n));
-    // }
+    for (int n = 0; n < 2; n++) {
+        printf("2 %% %d = %f\n", n, mod(2.0, (float) n));
+    }
 }

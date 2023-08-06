@@ -36,8 +36,6 @@ int CodeGen::RunPass(string OutFile)
     PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
     ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(OptimizationLevel::O2);
-    MPM.addPass()
-
     MPM.run(*TheModule, MAM);
 
     WriteBitcodeToFile(*TheModule, Dest);
