@@ -9,6 +9,67 @@ pub struct Parser {
     index: usize,
 }
 
+#[test]
+fn parser_new() {
+    let parser = Parser::new("test/test.txt");
+    assert!(parser.is_ok());
+}
+
+#[test]
+fn parser_basic_op_prec() {
+    let has_op_prec = [
+        Symbol::ToPower,
+        Symbol::Multiply,
+        Symbol::Divide,
+        Symbol::Add,
+        Symbol::Subtract,
+        Symbol::LessThan,
+        Symbol::GreaterThan,
+        Symbol::Comma,
+        Symbol::Equals,
+    ];
+    for (i, symbol) in has_op_prec.into_iter().enumerate() {
+        assert_eq!(Parser::basic_op_prec(symbol).unwrap(), i as u8);
+    }
+
+    let no_op_prec = [
+        Symbol::Ampersand,
+        Symbol::Colon,
+        Symbol::Pipe,
+        Symbol::Negate,
+        Symbol::Dot,
+    ];
+    for symbol in no_op_prec {
+        assert!(Parser::basic_op_prec(symbol).is_none());
+    }
+}
+
+#[test]
+fn parser_compound_op_prec() {
+    const BASIC_OP_COUNT: u8 = 9;
+
+    let compounds = [
+        (Symbol::LessThan, Symbol::Equals),
+        (Symbol::GreaterThan, Symbol::Equals),
+        (Symbol::Equals, Symbol::Equals),
+        (Symbol::Negate, Symbol::Equals),
+        (Symbol::Ampersand, Symbol::Ampersand),
+        (Symbol::Pipe, Symbol::Pipe),
+    ];
+    for (i, symbol) in compounds.into_iter().enumerate() {
+        assert_eq!(Parser::compound_op_prec(symbol).unwrap(), i as u8 + BASIC_OP_COUNT);
+    }
+}
+
+#[test]
+fn parser_next_token() {
+    // stupid
+    let tokens = vec![Token::Let];
+    let mut parser = Parser::from_tree(tokens);
+    assert_eq!(parser.next_token().unwrap(), Token::Let);
+    assert!(parser.next_token().is_err());
+}
+
 impl Parser {
     pub fn new(src: &str) -> Result<Parser> {
         let file = BufReader::new(File::open(src)?);
@@ -20,10 +81,12 @@ impl Parser {
         })
     }
 
+    // not testing this
     pub fn from_tree(tokens: Vec<Token>) -> Parser {
         Parser { tokens, index: 0 }
     }
 
+    // if you change this, make sure to change BASIC_OP_COUNT in the test function for compound_op_prec above
     fn basic_op_prec(symbol: Symbol) -> Option<u8> {
         match symbol {
             Symbol::ToPower => Some(0),

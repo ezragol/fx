@@ -14,9 +14,6 @@ macro_rules! err {
     }};
 }
 
-#[cfg(test)]
-mod test;
-
 #[no_mangle]
 pub extern "C" fn recieve_tokens() -> FFISafeExprVec {
     let parser = Parser::new("test.txt");

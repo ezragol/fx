@@ -1,19 +1,9 @@
 # fx
-writing a language in Rust, then extending it to C for LLVM
 
-# rust-c-ffi
+## rust-c-ffi
 use cbindgen (with cbindgen.toml)
 
-# todo
-- look into using doubly linked lists instead of vectors for the parser/lexer tokens
-- predicate parser
-- interface between rust/c++
-
-# tests
-- see performance of ffi interface (C++ side) of not using std::move vs. using std::move
-
-# it sort of works
-issues:
-- function calls = segfault
-- "chain expressions" (im gonna rename at some point) = segfault
-- :D
+## what works
+- floating point arithmetic (with order of operations!)
+- custom functions
+- can be imported as .o file into c project (using extern)

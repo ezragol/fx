@@ -41,7 +41,7 @@ int CodeGen::RunPass(string OutFile)
     WriteBitcodeToFile(*TheModule, Dest);
     Dest.flush();
 
-    TheModule->print(errs(), nullptr);
+    // TheModule->print(errs(), nullptr);
 
     return 0;
 }
