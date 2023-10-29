@@ -163,13 +163,13 @@ class CodeGen
     map<string, AllocaInst *> NamedValues;
     vector<unique_ptr<FunctionDefinition>> FunctionDefs;
     string TargetTriple;
-    TargetMachine *TargetMachine;
+    TargetMachine *TheTargetMachine;
     AllocaInst *CreateEntryBlockAlloca(Function *TheFunction, StringRef VarName);
     Function *LoadFunction(string Name);
     Value *GetPredFCmp(const unique_ptr<WhenExpression> &When);
 
 public:
-    CodeGen(string TargetTriple, class TargetMachine *TargetMachine);
+    CodeGen(string TargetTriple, TargetMachine *TheTargetMachine);
     int RunPass(string OutFile);
 
     Value *GenNumberLiteral(NumberLiteral *Num);

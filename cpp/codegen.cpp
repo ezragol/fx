@@ -1,14 +1,14 @@
 #include "codegen.h"
 
-CodeGen::CodeGen(string TargetTriple, class TargetMachine *TargetMachine)
-    : TargetTriple(TargetTriple), TargetMachine(TargetMachine)
+CodeGen::CodeGen(string TargetTriple, TargetMachine *TheTargetMachine)
+    : TargetTriple(TargetTriple), TheTargetMachine(TheTargetMachine)
 {
     TheContext = make_unique<LLVMContext>();
     TheModule = make_unique<Module>("fx", *TheContext);
     Builder = make_unique<IRBuilder<>>(*TheContext);
 
     TheModule->setTargetTriple(TargetTriple);
-    TheModule->setDataLayout(TargetMachine->createDataLayout());
+    TheModule->setDataLayout(TheTargetMachine->createDataLayout());
 }
 
 int CodeGen::RunPass(string OutFile)
@@ -27,7 +27,7 @@ int CodeGen::RunPass(string OutFile)
     FunctionAnalysisManager FAM;
     CGSCCAnalysisManager CGAM;
     ModuleAnalysisManager MAM;
-    PassBuilder PB(TargetMachine);
+    PassBuilder PB(TheTargetMachine);
 
     PB.registerModuleAnalyses(MAM);
     PB.registerCGSCCAnalyses(CGAM);
@@ -360,7 +360,7 @@ Value *ast::StringLiteral::Gen(CodeGen *Generator)
 }
 
 FunctionDefinition::FunctionDefinition(string Name, vector<string> Args, unique_ptr<Expr> Body)
-    : Name(Name), Args(Args), Body(move(Body)) {}
+    : Name(Name), Args(Args), Body(std::move(Body)) {}
 
 const string &FunctionDefinition::GetName()
 {
@@ -396,7 +396,7 @@ Value *FunctionDefinition::Gen(CodeGen *Generator)
 }
 
 ChainExpression::ChainExpression(vector<unique_ptr<WhenExpression>> Expressions, unique_ptr<Expr> Last)
-    : Expressions(move(Expressions)), Last(move(Last)) {}
+    : Expressions(std::move(Expressions)), Last(std::move(Last)) {}
 
 const vector<unique_ptr<WhenExpression>> &ChainExpression::GetExpressions()
 {
@@ -425,7 +425,7 @@ Value *ChainExpression::Gen(CodeGen *Generator)
 }
 
 BinaryOperation::BinaryOperation(uint8_t Op, unique_ptr<Expr> Left, unique_ptr<Expr> Right)
-    : Op(Op), Left(move(Left)), Right(move(Right)) {}
+    : Op(Op), Left(std::move(Left)), Right(std::move(Right)) {}
 
 const uint8_t &BinaryOperation::GetOp()
 {
@@ -456,7 +456,7 @@ Value *BinaryOperation::Gen(CodeGen *Generator)
 }
 
 WhenExpression::WhenExpression(unique_ptr<Expr> Predicate, unique_ptr<Expr> Result)
-    : Predicate(move(Predicate)), Result(move(Result)) {}
+    : Predicate(std::move(Predicate)), Result(std::move(Result)) {}
 
 const unique_ptr<Expr> &WhenExpression::GetPredicate()
 {
@@ -481,7 +481,7 @@ Value *WhenExpression::Gen(CodeGen *Generator)
 }
 
 FunctionCall::FunctionCall(string Name, vector<unique_ptr<Expr>> Args)
-    : Name(Name), Args(move(Args)) {}
+    : Name(Name), Args(std::move(Args)) {}
 
 const string &FunctionCall::GetName()
 {

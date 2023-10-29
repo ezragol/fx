@@ -10,7 +10,8 @@ echo "-> building all components"
 fx_echo "-> building rust components"
 if cargo build ; then
     fx_echo "-> configuring c++ components"
-    if cmake build -B build -DLLVM_TARGETS_TO_BUILD=x86 ; then
+    mkdir -p build
+    if cmake -G Ninja -B build -DLLVM_TARGETS_TO_BUILD=x86 ; then
         fx_echo "-> entering build directory"
         cd build
         echo "-> building c++ components"

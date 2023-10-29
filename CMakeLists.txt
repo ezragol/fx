@@ -20,17 +20,7 @@ add_executable(fx
         cpp/interface.cpp
         cpp/codegen.cpp)
 
-llvm_map_components_to_libnames(llvm_libs 
-        support
-        core 
-        executionengine
-        interpreter
-        mc
-        nativecodegen
-        x86asmparser
-        passes)
-
-target_link_libraries(fx PUBLIC ${llvm_libs} ${LIB_FX_PATH})
+target_link_libraries(fx PUBLIC LLVM-16 ${LIB_FX_PATH})
 
 target_include_directories(fx PUBLIC
         "${PROJECT_BINARY_DIR}"
