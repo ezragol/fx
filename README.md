@@ -7,6 +7,7 @@
 - floating point arithmetic (with order of operations!)
 - custom functions
 - can be imported as .o file into c project (using extern)
+- look at test/test.txt as an example of a working script!!
 
 ## Cmake Issues
 - llvm versions are a little wonky
