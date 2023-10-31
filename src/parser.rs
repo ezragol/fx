@@ -84,7 +84,7 @@ mod tests {
             Token::Let,
             Token::Identifier("age".to_string()),
             Token::Symbol(Symbol::Equals),
-            Token::Number(Some(0), Some(17.0)),
+            Token::Number(None, Some(17.0)),
         ];
         for token in expected {
             assert_eq!(parser.next_token().unwrap(), token);
@@ -95,7 +95,8 @@ mod tests {
     #[test]
     fn expect_identifier() {
         let mut parser = parser_from("basic").unwrap();
-        assert_eq!(parser.expect_identifier().unwrap(), "a".to_string());
+        assert_eq!(parser.next_token().unwrap(), Token::Let);
+        assert_eq!(parser.expect_identifier().unwrap(), "age".to_string());
     }
 
     #[test]
