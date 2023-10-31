@@ -32,4 +32,4 @@
     ./test.sh valgrind -j10 --suppressions=./suppressions.txt
     ```
     this will build with `ninja -j10` and then run the build script with `valgrind --suppressions=./suppressions.txt`
-- it is not perfect, hopefully be improved in the future
+- it's not perfect, hopefully gonna be improved in the future
