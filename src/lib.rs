@@ -1,5 +1,6 @@
 use ast::*;
 use parser::Parser;
+use std::ffi::{c_char, CString};
 
 mod ast;
 mod errors;
@@ -16,7 +17,7 @@ macro_rules! err {
 
 #[no_mangle]
 pub extern "C" fn recieve_tokens() -> FFISafeExprVec {
-    let parser = Parser::new("test.txt");
+    let parser = Parser::new("./test/test.txt");
     let tree = match parser {
         Ok(mut p) => p.run(),
         Err(e) => err!("{}", e),
@@ -28,6 +29,11 @@ pub extern "C" fn recieve_tokens() -> FFISafeExprVec {
     };
     return ffi_safe;
 }
+
+// #[no_mangle]
+// pub extern "C" fn parse_options(start: *mut *mut c_char, size: usize) -> *mut c_char {
+    
+// }
 
 unsafe fn box_drop<T>(ffi_val: *mut T) {
     drop(Box::from_raw(ffi_val));

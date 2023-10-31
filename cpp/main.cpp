@@ -1,6 +1,6 @@
 #include "compiler.h"
 
-int main()
+int main(int argc, char* argv[])
 {
-    Compile("test.bc");
+    // return Compile("./test/test.bc");
 }

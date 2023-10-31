@@ -6,30 +6,46 @@ function fx_echo() {
 }
 
 function build_test_exec {
-    fx_echo "-> building test objects"
-    if llc -filetype=obj test.bc ;  then
-        fx_echo "<- building test executable"
-        if clang -o test test.c test.o ; then
-            fx_echo "<- done"
+    fx_echo ">> building test objects"
+    if llc -filetype=obj test/test.bc ;  then
+        fx_echo ">> building test executable"
+        if clang -o ./testbin ./test/test.c ./test/test.o ; then
+            fx_echo "done 0"
             exit 0
         fi
     fi
 }
 
-echo "-> creating test"
-if ./build.sh ; then
-    fx_echo "-> entering test folder"
-    cd test
-    echo "-> compiling test object"
-    if [ "$1" = "valgrind" ] ; then
-        CONTINUE=$(valgrind --tool=memcheck --leak-check=full ../build/fx)
+CWD=$(pwd)
+echo ">> creating test build"
+for arg in $@
+do
+    if [ "$arg" = "valgrind" ] ; then
+        VALGRIND=true
+    elif [ $NINJA_ARGS ] ; then
+        VALGRIND_ARGS=$arg
     else
-        CONTINUE=$(../build/fx)
+        NINJA_ARGS=$arg
+    fi
+done
+
+echo ">> ninja: $NINJA_ARGS"
+echo ">> valgrind: $VALGRIND $VALGRIND_ARGS"
+
+if ./build.sh $NINJA_ARGS ; then
+    cd $CWD
+    echo ">> compiling test object"
+    if $VALGRIND ; then
+        echo ">> running build executable with valgrind"
+        CONTINUE=$(valgrind --tool=memcheck --leak-check=full $VALGRIND_ARGS ./build/fx)
+    else
+        echo ">> running build executable"
+        CONTINUE=$(./build/fx)
     fi
     if [ CONTINUE ] ; then
         build_test_exec
     fi
-fi
 
-fx_echo "<- exiting"
-exit 1
+    fx_echo "fail 1"
+    exit 1
+fi

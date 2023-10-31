@@ -24,4 +24,5 @@ _deps
 
 test.o
 test.bc
-test/test
+testbin
+valgrind_suppressed.txt
