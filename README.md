@@ -13,7 +13,7 @@
 
 ## build.sh
 - all arguments are passed directly to ninja
-    bash```
+    ```bash
     ./build.sh -j10
     ```
     this will build with `ninja -j10`
@@ -24,11 +24,11 @@
 - the first other argument is passed directly to ninja
 - the next argument is passed directly to valgrind
 - for example:
-    bash```
+    ```bash
     ./test.sh -j10 valgrind
     ``` 
     this will build with `ninja -j10` and then run the build script with `valgrind`
-    bash```
+    ```bash
     ./test.sh valgrind -j10 --suppressions=./suppressions.txt
     ```
     this will build with `ninja -j10` and then run the build script with `valgrind --suppressions=./suppressions.txt`
