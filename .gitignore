@@ -25,4 +25,7 @@ _deps
 test.o
 test.bc
 testbin
+
+# valgrind
 valgrind_suppressed.txt
+vgcore.*

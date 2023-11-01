@@ -39,7 +39,7 @@ fn convert_box(from: Box<Expr>) -> *mut FFISafeExpr {
     Box::into_raw(convert_expr(*from).into())
 }
 
-fn convert_str(from: String) -> *mut c_char {
+pub fn convert_str(from: String) -> *mut c_char {
     let cstr = CString::new(from).unwrap();
     return cstr.into_raw();
 }

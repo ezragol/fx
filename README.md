@@ -9,7 +9,7 @@
 - can be imported as .o file into c project (using extern)
 - look at test/test.txt as an example of a working script!!
 
-## Cmake Issues
+## cmake issues
 - llvm versions are a little wonky
 
 ## build.sh

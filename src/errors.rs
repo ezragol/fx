@@ -23,3 +23,5 @@ def!(IdentifierError, "expected identifier!");
 def!(GroupingError, "improperly formatted grouping!");
 def!(UnknownTokenError, "unknown token!");
 def!(BadCommaError, "comma placed badly!");
+def!(BadArgumentError, "bad argument...");
+def!(MissingOutputFileError, "no output file supplied!");

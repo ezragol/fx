@@ -17,6 +17,7 @@ function build_test_exec {
 }
 
 CWD=$(pwd)
+VALGRIND=false
 echo ">> creating test build"
 for arg in $@
 do
@@ -32,15 +33,17 @@ done
 echo ">> ninja: $NINJA_ARGS"
 echo ">> valgrind: $VALGRIND $VALGRIND_ARGS"
 
+BUILD="./build/fx ./test/test.txt ./testbin"
+
 if ./build.sh $NINJA_ARGS ; then
     cd $CWD
     echo ">> compiling test object"
     if $VALGRIND ; then
         echo ">> running build executable with valgrind"
-        CONTINUE=$(valgrind --tool=memcheck --leak-check=full $VALGRIND_ARGS ./build/fx)
+        CONTINUE=$(valgrind --tool=memcheck --leak-check=full $VALGRIND_ARGS $BUILD)
     else
         echo ">> running build executable"
-        CONTINUE=$(./build/fx)
+        CONTINUE=$($BUILD)
     fi
     if [ CONTINUE ] ; then
         build_test_exec

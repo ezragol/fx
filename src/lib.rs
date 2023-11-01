@@ -1,11 +1,13 @@
 use ast::*;
+use options::Options;
 use parser::Parser;
-use std::ffi::{c_char, CString};
+use std::ffi::c_char;
 
 mod ast;
 mod errors;
 mod lexer;
 mod parser;
+mod options;
 
 #[macro_export]
 macro_rules! err {
@@ -30,10 +32,11 @@ pub extern "C" fn recieve_tokens() -> FFISafeExprVec {
     return ffi_safe;
 }
 
-// #[no_mangle]
-// pub extern "C" fn parse_options(start: *mut *mut c_char, size: usize) -> *mut c_char {
-    
-// }
+#[no_mangle]
+pub extern "C" fn parse_options(start: *mut *mut c_char, size: usize) -> *mut c_char {
+    let options = Options::new(start, size).unwrap();
+    return convert_str(options.filename);
+}
 
 unsafe fn box_drop<T>(ffi_val: *mut T) {
     drop(Box::from_raw(ffi_val));
