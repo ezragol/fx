@@ -21,21 +21,23 @@ VALGRIND=false
 echo ">> creating test build"
 for arg in $@
 do
-    if [ "$arg" = "valgrind" ] ; then
+    if [[ $arg =~ ^ninja(.*)$ ]] ; then
+        NINJA_ARGS="$NINJA_ARGS ${BASH_REMATCH[1]}"
+    elif [[ $arg =~ ^valgrind(.*)$ ]] ; then
         VALGRIND=true
-    elif [ $NINJA_ARGS ] ; then
-        VALGRIND_ARGS=$arg
+        VALGRIND_ARGS="$VALGRIND_ARGS ${BASH_REMATCH[1]}"
     else
-        NINJA_ARGS=$arg
+        BUILD_ARGS="$BUILD_ARGS$arg"
     fi
 done
 
 echo ">> ninja: $NINJA_ARGS"
 echo ">> valgrind: $VALGRIND $VALGRIND_ARGS"
+echo ">> build: $BUILD_ARGS"
 
-BUILD="./build/fx ./test/test.txt ./testbin"
+BUILD="./build/fx $BUILD_ARGS"
 
-if ./build.sh $NINJA_ARGS ; then
+if [ BUILD ] ; then
     cd $CWD
     echo ">> compiling test object"
     if $VALGRIND ; then
