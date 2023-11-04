@@ -12,7 +12,7 @@ pub struct Parser {
 #[cfg(test)]
 mod tests {
     use super::*;
-    const BASIC_OP_COUNT: u8 = 9;
+    const BASIC_OP_COUNT: u8 = 10;
     const TEST_INPUT: &str = "src/tests/";
 
     fn path(add: &str) -> String {
@@ -37,6 +37,7 @@ mod tests {
             Symbol::Divide,
             Symbol::Add,
             Symbol::Subtract,
+            Symbol::Remainder,
             Symbol::LessThan,
             Symbol::GreaterThan,
             Symbol::Comma,
@@ -131,24 +132,25 @@ impl Parser {
             Symbol::ToPower => Some(0),
             Symbol::Multiply => Some(1),
             Symbol::Divide => Some(2),
-            Symbol::Add => Some(3),
-            Symbol::Subtract => Some(4),
-            Symbol::LessThan => Some(5),
-            Symbol::GreaterThan => Some(6),
-            Symbol::Comma => Some(7),
-            Symbol::Equals => Some(8),
+            Symbol::Remainder => Some(3),
+            Symbol::Add => Some(4),
+            Symbol::Subtract => Some(5),
+            Symbol::LessThan => Some(6),
+            Symbol::GreaterThan => Some(7),
+            Symbol::Comma => Some(8),
+            Symbol::Equals => Some(9),
             _ => None,
         }
     }
 
     fn compound_op_prec(symbols: (Symbol, Symbol)) -> Option<u8> {
         match symbols {
-            (Symbol::LessThan, Symbol::Equals) => Some(9),
-            (Symbol::GreaterThan, Symbol::Equals) => Some(10),
-            (Symbol::Equals, Symbol::Equals) => Some(11),
-            (Symbol::Negate, Symbol::Equals) => Some(12),
-            (Symbol::Ampersand, Symbol::Ampersand) => Some(13),
-            (Symbol::Pipe, Symbol::Pipe) => Some(14),
+            (Symbol::LessThan, Symbol::Equals) => Some(10),
+            (Symbol::GreaterThan, Symbol::Equals) => Some(11),
+            (Symbol::Equals, Symbol::Equals) => Some(12),
+            (Symbol::Negate, Symbol::Equals) => Some(13),
+            (Symbol::Ampersand, Symbol::Ampersand) => Some(14),
+            (Symbol::Pipe, Symbol::Pipe) => Some(15),
             _ => None,
         }
     }

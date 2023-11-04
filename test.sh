@@ -27,7 +27,7 @@ do
         VALGRIND=true
         VALGRIND_ARGS="$VALGRIND_ARGS ${BASH_REMATCH[1]}"
     else
-        BUILD_ARGS="$BUILD_ARGS$arg"
+        BUILD_ARGS="$BUILD_ARGS $arg"
     fi
 done
 
@@ -37,7 +37,7 @@ echo ">> build: $BUILD_ARGS"
 
 BUILD="./build/fx $BUILD_ARGS"
 
-if [ BUILD ] ; then
+if ./build.sh $NINJA_ARGS ; then
     cd $CWD
     echo ">> compiling test object"
     if $VALGRIND ; then

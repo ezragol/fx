@@ -20,17 +20,15 @@
     this will build with `ninja -j10`
 
 ## test.sh
-- this is not a very smart script
-- if you give it the argument `valgrind` at any point, it will run valgrind
-- the first other argument is passed directly to ninja
-- the next argument is passed directly to valgrind
+- if you want to run with valgrind, pass with `valgrind`
+- if you want to pass valgrind args, use `valgrind*arg*`
+- if you want to pass ninja options, use `ninja*arg*`
 - for example:
     ```bash
-    ./test.sh -j10 valgrind
+    ./test.sh ninja-j10 valgrind
     ``` 
     this will build with `ninja -j10` and then run the build script with `valgrind`
     ```bash
-    ./test.sh valgrind -j10 --suppressions=./suppressions.txt
+    ./test.sh ninja-j10 valgrind--suppressions=./suppressions.txt
     ```
     this will build with `ninja -j10` and then run the build script with `valgrind --suppressions=./suppressions.txt`
-- it's not perfect, hopefully gonna be improved in the future

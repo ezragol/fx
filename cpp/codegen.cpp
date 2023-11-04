@@ -41,12 +41,12 @@ int CodeGen::RunPass(string OutFile)
     WriteBitcodeToFile(*TheModule, Dest);
     Dest.flush();
 
-    // TheModule->print(errs(), nullptr);
+    // TheModule->print(dbgs(), nullptr);
 
     return 0;
 }
 
-// taken from llvm examples (like most things in this)
+// taken from llvm examples (like most things)
 AllocaInst *CodeGen::CreateEntryBlockAlloca(Function *TheFunction, StringRef VarName)
 {
     IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
@@ -60,7 +60,7 @@ Function *CodeGen::LoadFunction(string Name)
     {
         return Fn;
     }
-    cout << "can't find function!\n";
+    dbgs() << "can't find function!\n";
     return nullptr;
 }
 
@@ -107,7 +107,7 @@ Function *CodeGen::GenFunctionDefinition(FunctionDefinition *Def)
     }
 
     Fn->eraseFromParent();
-    cout << "missing return val!\n";
+    errs() << "missing return val!\n";
     return nullptr;
 }
 
@@ -122,7 +122,7 @@ Value *CodeGen::GetPredFCmp(const unique_ptr<WhenExpression> &When)
     Value *Predicate = When->GetPredicate()->Gen(this);
     if (!Predicate)
     {
-        cout << "missing predicate!\n";
+        dbgs() << "missing predicate!\n";
         return nullptr;
     }
     return Builder->CreateFCmpONE(Predicate, ConstantFP::get(*TheContext, APFloat(0.0)), "ifcond");
@@ -137,7 +137,7 @@ Value *CodeGen::GenChainExpression(ChainExpression *Chain)
     Value *Predicate = GetPredFCmp(Chain->GetExpressions()[0]);
     if (!Predicate)
     {
-        cout << "missing predicate!\n";
+        dbgs() << "missing predicate!\n";
         return nullptr;
     }
 
@@ -157,7 +157,7 @@ Value *CodeGen::GenChainExpression(ChainExpression *Chain)
         Value *Result = Last->GetResult()->Gen(this);
         if (!Result)
         {
-            cout << "missing result!\n";
+            dbgs() << "missing result!\n";
             return nullptr;
         }
 
@@ -173,7 +173,7 @@ Value *CodeGen::GenChainExpression(ChainExpression *Chain)
             Predicate = GetPredFCmp(When);
             if (!Predicate)
             {
-                cout << "missing predicate!\n";
+                dbgs() << "missing predicate!\n";
                 return nullptr;
             }
             Current = BasicBlock::Create(*TheContext, "then", Parent);
@@ -186,7 +186,7 @@ Value *CodeGen::GenChainExpression(ChainExpression *Chain)
             Value *Final = Chain->GetLast()->Gen(this);
             if (!Final)
             {
-                cout << "missing result!\n";
+                dbgs() << "missing result!\n";
                 return nullptr;
             }
             Builder->CreateBr(Merge);
@@ -216,7 +216,7 @@ Value *CodeGen::GenBinaryOperation(BinaryOperation *Bin)
 
     if (!Left || !Right)
     {
-        cout << "error inside binary operator!\n";
+        dbgs() << "error inside binary operator!\n";
         return nullptr;
     }
 
@@ -227,31 +227,33 @@ Value *CodeGen::GenBinaryOperation(BinaryOperation *Bin)
     case 2:
         return Builder->CreateFDiv(Left, Right, "divtmp");
     case 3:
-        return Builder->CreateFAdd(Left, Right, "addtmp");
+        return Builder->CreateFRem(Left, Right, "remtmp");
     case 4:
+        return Builder->CreateFAdd(Left, Right, "addtmp");
+    case 5:
         return Builder->CreateFSub(Left, Right, "subtmp");
 
     // boolean operators
-    case 5:
+    case 6:
         Left = Builder->CreateFCmpULT(Left, Right, "ulttmp");
         break;
-    case 6:
+    case 7:
         Left = Builder->CreateFCmpUGT(Left, Right, "ugttmp");
         break;
-    case 9:
+    case 10:
         Left = Builder->CreateFCmpULE(Left, Right, "uletmp");
         break;
-    case 10:
+    case 11:
         Left = Builder->CreateFCmpUGE(Left, Right, "ugetmp");
         break;
-    case 11:
+    case 12:
         Left = Builder->CreateFCmpUEQ(Left, Right, "ueqtmp");
         break;
-    case 12:
+    case 13:
         Left = Builder->CreateFCmpUNE(Left, Right, "unetmp");
         break;
     default:
-        cout << "unknown operator!\n";
+        dbgs() << "unknown operator!\n";
         return nullptr;
     }
 
@@ -271,14 +273,14 @@ Value *CodeGen::GenFunctionCall(FunctionCall *Call)
     Function *Fn = LoadFunction(Call->GetName());
     if (!Fn)
     {
-        cout << "unknown function!\n";
+        dbgs() << "unknown function!\n";
         return nullptr;
     }
 
     int CallArgCount = Call->GetArgs().size();
     if (Fn->arg_size() != CallArgCount)
     {
-        cout << "mismatched arg count!\n";
+        dbgs() << "mismatched arg count!\n";
         return nullptr;
     }
 
@@ -288,7 +290,7 @@ Value *CodeGen::GenFunctionCall(FunctionCall *Call)
         Argv.push_back(Call->GetArgs()[i]->Gen(this));
         if (!Argv.back())
         {
-            cout << "missing args!\n";
+            dbgs() << "missing args!\n";
             return nullptr;
         }
     }
@@ -303,7 +305,7 @@ Value *CodeGen::GenVariableRef(VariableRef *Ref)
     Value *V = NamedValues[Name];
     if (!V)
     {
-        cout << "unknown variable name!";
+        dbgs() << "unknown variable name!";
         return nullptr;
     }
 
@@ -333,7 +335,7 @@ const double &NumberLiteral::GetFloatVal()
 
 void NumberLiteral::Print(string Prefix)
 {
-    cout << Prefix << "number { " << Floating << ", " << IntVal << ", " << FloatVal << " }\n";
+    dbgs() << Prefix << "number { " << Floating << ", " << IntVal << ", " << FloatVal << " }\n";
 }
 
 Value *NumberLiteral::Gen(CodeGen *Generator)
@@ -351,7 +353,7 @@ const string &ast::StringLiteral::GetStringVal()
 
 void ast::StringLiteral::Print(string Prefix)
 {
-    cout << Prefix << "string \"" << StringVal << "\"\n";
+    dbgs() << Prefix << "string \"" << StringVal << "\"\n";
 }
 
 Value *ast::StringLiteral::Gen(CodeGen *Generator)
@@ -379,15 +381,15 @@ const unique_ptr<Expr> &FunctionDefinition::GetBody()
 
 void FunctionDefinition::Print(string Prefix)
 {
-    cout << Prefix << "fn " << Name << " ( ";
+    dbgs() << Prefix << "fn " << Name << " ( ";
     for (string Arg : Args)
     {
-        cout << Arg << " ";
+        dbgs() << Arg << " ";
     }
-    cout << ") {\n"
+    dbgs() << ") {\n"
          << Prefix;
     Body->Print(Prefix + "  ");
-    cout << Prefix << "}\n";
+    dbgs() << Prefix << "}\n";
 }
 
 Value *FunctionDefinition::Gen(CodeGen *Generator)
@@ -410,13 +412,13 @@ const unique_ptr<Expr> &ChainExpression::GetLast()
 
 void ChainExpression::Print(string Prefix)
 {
-    cout << Prefix << "chain { \n";
+    dbgs() << Prefix << "chain { \n";
     for (auto &Expr : Expressions)
     {
         Expr->Print(Prefix + "  ");
     }
     Last->Print(Prefix + "  ");
-    cout << Prefix << "}\n";
+    dbgs() << Prefix << "}\n";
 }
 
 Value *ChainExpression::Gen(CodeGen *Generator)
@@ -444,10 +446,10 @@ const unique_ptr<Expr> &BinaryOperation::GetRight()
 
 void BinaryOperation::Print(string Prefix)
 {
-    cout << Prefix << "op " << unsigned(Op) << " { \n";
+    dbgs() << Prefix << "op " << unsigned(Op) << " { \n";
     Left->Print(Prefix + "  ");
     Right->Print(Prefix + "  ");
-    cout << Prefix << "}\n";
+    dbgs() << Prefix << "}\n";
 }
 
 Value *BinaryOperation::Gen(CodeGen *Generator)
@@ -469,10 +471,10 @@ const unique_ptr<Expr> &WhenExpression::GetResult()
 }
 void WhenExpression::Print(string Prefix)
 {
-    cout << Prefix << "when {\n";
+    dbgs() << Prefix << "when {\n";
     Predicate->Print(Prefix + "  ");
     Result->Print(Prefix + "  then ");
-    cout << Prefix << "}\n";
+    dbgs() << Prefix << "}\n";
 }
 
 Value *WhenExpression::Gen(CodeGen *Generator)
@@ -495,12 +497,12 @@ const vector<unique_ptr<Expr>> &FunctionCall::GetArgs()
 
 void FunctionCall::Print(string Prefix)
 {
-    cout << Prefix << Name << " (\n";
+    dbgs() << Prefix << Name << " (\n";
     for (auto &Arg : Args)
     {
         Arg->Print(Prefix + "  ");
     }
-    cout << Prefix << ")\n";
+    dbgs() << Prefix << ")\n";
 }
 
 Value *FunctionCall::Gen(CodeGen *Generator)
@@ -518,7 +520,7 @@ const string &VariableRef::GetName()
 
 void VariableRef::Print(string Prefix)
 {
-    cout << Prefix << "var " << Name << "\n";
+    dbgs() << Prefix << "var " << Name << "\n";
 }
 
 Value *VariableRef::Gen(CodeGen *Generator)

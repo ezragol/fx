@@ -1,4 +1,1 @@
-let mod(x, y) =
-    0.0 when x == y,
-    mod(x - y, y) when x > y,
-    x
+let mod(x, y) = x + y

@@ -3,7 +3,8 @@
 int main(int argc, char *argv[])
 {
     char *filename = parse_options(argv, argc);
-    errs() << "filename: " << filename << "\n";
+    dbgs() << "filename: " << filename << "\n";
+    int compiled = Compile(filename);
     free(filename);
-    // return Compile("./test/test.bc");
+    return compiled;
 }
