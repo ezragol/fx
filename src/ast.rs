@@ -100,4 +100,5 @@ pub enum FFISafeExpr {
 pub struct FFISafeExprVec {
     pub ptr: *mut FFISafeExpr,
     pub len: usize,
+    pub out: *mut c_char
 }

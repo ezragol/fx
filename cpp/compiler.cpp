@@ -1,7 +1,7 @@
 #include "compiler.h"
 
 // all taken from llvm examples
-int Compile(string OutFile)
+int Compile(int argc, char *argv[])
 {
     auto TargetTriple = sys::getDefaultTargetTriple();
     InitializeNativeTarget();
@@ -22,7 +22,7 @@ int Compile(string OutFile)
     auto RM = optional<Reloc::Model>();
     auto TargetMachine = Target->createTargetMachine(TargetTriple, CPU, Features, Opt, RM);
     CodeGen Generator(TargetTriple, TargetMachine);
-    FFISafeExprVec Tokens = recieve_tokens();
+    FFISafeExprVec Tokens = recieve_tokens(argv, argc);
     auto Tree = ReGenerateAST(Tokens);
     drop_all(Tokens.ptr, Tokens.len);
 
@@ -31,7 +31,7 @@ int Compile(string OutFile)
         branch->Gen(&Generator);
     }
 
-    if (Generator.RunPass(OutFile))
+    if (Generator.RunPass(Tokens.out))
         return 1;
 
     delete TargetMachine;

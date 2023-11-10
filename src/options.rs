@@ -1,6 +1,7 @@
 use crate::errors::{BadArgumentError, MissingOutputFileError, Result};
 use std::ffi::{c_char, CStr};
 
+#[derive(Debug)]
 pub struct Options {
     pub filename: String,
     pub outfile: String,
@@ -13,7 +14,6 @@ impl Options {
         let mut argv: Vec<String> = vec![];
         unsafe {
             let slice = std::slice::from_raw_parts(argv_ptr, size);
-
             for string in slice {
                 match CStr::from_ptr(string.clone()).to_str() {
                     Ok(s) => argv.push(s.to_string()),

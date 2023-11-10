@@ -18,8 +18,10 @@ macro_rules! err {
 }
 
 #[no_mangle]
-pub extern "C" fn recieve_tokens() -> FFISafeExprVec {
-    let parser = Parser::new("./test/test.txt");
+pub extern "C" fn recieve_tokens(start: *mut *mut c_char, size: usize) -> FFISafeExprVec {
+    let options = Options::new(start, size).unwrap();
+    println!("{:#?}", options);
+    let parser = Parser::new(&options.filename);
     let tree = match parser {
         Ok(mut p) => p.run(),
         Err(e) => err!("{}", e),
@@ -28,14 +30,9 @@ pub extern "C" fn recieve_tokens() -> FFISafeExprVec {
     let ffi_safe = FFISafeExprVec {
         ptr: ffi_safe_tree.0,
         len: ffi_safe_tree.1,
+        out: convert_str(options.outfile)
     };
     return ffi_safe;
-}
-
-#[no_mangle]
-pub extern "C" fn parse_options(start: *mut *mut c_char, size: usize) -> *mut c_char {
-    let options = Options::new(start, size).unwrap();
-    return convert_str(options.filename);
 }
 
 unsafe fn box_drop<T>(ffi_val: *mut T) {

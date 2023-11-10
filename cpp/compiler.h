@@ -10,6 +10,6 @@ using namespace std;
 using namespace llvm;
 using namespace llvm::sys;
 
-int Compile(string OutFile);
+int Compile(int argc, char *argv[]);
 
 #endif

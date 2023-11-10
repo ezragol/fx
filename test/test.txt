@@ -1,1 +1,1 @@
-let mod(x, y) = x + y
+let mod(x, y) = x * y
