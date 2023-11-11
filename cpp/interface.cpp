@@ -56,7 +56,7 @@ unique_ptr<Expr> TranslateExpression(const FFISafeExpr *Ptr)
         {
             WhenVec.push_back(TranslateWhen(Start + i));
         }
-        return make_unique<ChainExpression>(move(WhenVec), TranslateExpression(Start + Size));
+        return make_unique<ChainExpression>(std::move(WhenVec), TranslateExpression(Start + Size));
     }
     case FFISafeExpr::Tag::BinaryOperation:
     {

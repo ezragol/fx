@@ -6,8 +6,8 @@ use std::ffi::c_char;
 mod ast;
 mod errors;
 mod lexer;
-mod parser;
 mod options;
+mod parser;
 
 #[macro_export]
 macro_rules! err {
@@ -20,7 +20,6 @@ macro_rules! err {
 #[no_mangle]
 pub extern "C" fn recieve_tokens(start: *mut *mut c_char, size: usize) -> FFISafeExprVec {
     let options = Options::new(start, size).unwrap();
-    println!("{:#?}", options);
     let parser = Parser::new(&options.filename);
     let tree = match parser {
         Ok(mut p) => p.run(),
@@ -30,7 +29,7 @@ pub extern "C" fn recieve_tokens(start: *mut *mut c_char, size: usize) -> FFISaf
     let ffi_safe = FFISafeExprVec {
         ptr: ffi_safe_tree.0,
         len: ffi_safe_tree.1,
-        out: convert_str(options.outfile)
+        out: convert_str(options.outfile),
     };
     return ffi_safe;
 }
@@ -50,7 +49,9 @@ unsafe fn drop_expr(expr: &FFISafeExpr) {
             for &arg in args {
                 box_drop(arg);
             }
-            box_drop(arg_start);
+            if len > 0 {
+                box_drop(arg_start);
+            }
             drop_expr(body.as_ref().unwrap());
             box_drop(body);
         }

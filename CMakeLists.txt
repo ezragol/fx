@@ -4,14 +4,21 @@ project(fx)
 set(CMAKE_CXX_STANDARD 17)
 
 option(src "source file" OFF)
+option(exec "executable name" OFF)
 
 if (src)
-        set(OUTFILE ${src})
+        set(SRCROOT ${src})
 else()
-        set(OUTFILE "./test/test")
+        set(SRCROOT "./test/test")
 endif()
 
-set(OUTFILE ${CMAKE_SOURCE_DIR}/${OUTFILE})
+if (exec)
+        set(EXEC ${exec})
+else()
+        set(EXEC "out")
+endif()
+
+set(FULLROOT ${CMAKE_SOURCE_DIR}/${SRCROOT})
 
 find_package(LLVM REQUIRED CONFIG)
 set(LIB_FX_PATH "${PROJECT_SOURCE_DIR}/target/debug/librfx.a")
@@ -31,16 +38,17 @@ add_executable(fx
         cpp/codegen.cpp)
 
 add_custom_command(
-        OUTPUT ${OUTFILE}.o
-        DEPENDS ${OUTFILE}.txt
+        OUTPUT ${EXEC}__.o
+        DEPENDS ${FULLROOT}.txt
         COMMAND cargo build
-        COMMAND fx ${OUTFILE}.txt ${OUTFILE}.bc
-        COMMAND llc -filetype=obj ${OUTFILE}.bc
+        COMMAND fx ${FULLROOT}.txt ${FULLROOT}__.bc
+        COMMAND llc -filetype=obj -o ${EXEC}__.o ${FULLROOT}__.bc
+        COMMAND rm ${FULLROOT}__.bc
 )
 
-add_executable(testbin
-        ${OUTFILE}.c
-        ${OUTFILE}.o)
+add_executable(${EXEC}
+        out.c
+        ${EXEC}__.o)
 
 target_link_libraries(fx PUBLIC LLVM-${LLVM_VERSION_MAJOR} ${LIB_FX_PATH})
 

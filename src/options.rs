@@ -22,8 +22,6 @@ impl Options {
             }
         }
 
-        println!("{:?}", argv);
-
         if argv.len() > 2 {
             Ok(Options {
                 filename: argv[1].clone(),

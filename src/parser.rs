@@ -447,7 +447,7 @@ impl Parser {
                     }
                     Token::Bracket(Bracket::Parens(Is::Closed)) => {
                         arg_tree.push(identifier);
-                        return Ok(arg_tree);
+                        break;
                     }
                     // type annotations go here
                     // Token::Operation(Symbol::Colon) => {}
@@ -458,7 +458,7 @@ impl Parser {
                 }
             }
         }
-        return Err(IdentifierError.into());
+        return Ok(arg_tree);
     }
 
     fn parse_one_of_chain(current_group: Vec<Token>) -> Result<Expr> {

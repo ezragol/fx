@@ -22,9 +22,8 @@ _deps
 
 .vscode/
 
-test.o
-test.bc
-testbin
+*.o
+*.bc
 
 # valgrind
 valgrind_suppressed.txt
