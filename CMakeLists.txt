@@ -9,7 +9,7 @@ option(exec "executable name" OFF)
 if (src)
         set(SRCROOT ${src})
 else()
-        set(SRCROOT "./test")
+        set(SRCROOT "./example")
 endif()
 
 if (exec)
