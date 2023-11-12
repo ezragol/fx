@@ -1,7 +1,7 @@
 use ast::*;
 use options::Options;
 use parser::Parser;
-use std::ffi::c_char;
+use std::{ffi::c_char, fmt::Display};
 
 mod ast;
 mod errors;
@@ -9,22 +9,18 @@ mod lexer;
 mod options;
 mod parser;
 
-#[macro_export]
-macro_rules! err {
-    ($($t:tt)*) => {{
-        eprintln!($($t)*);
-        std::process::exit(1);
-    }};
+pub fn dbg<T, E: Display>(opt: Result<T, E>) -> T {
+    match opt {
+        Ok(v) => v,
+        Err(e) => panic!("{}", e)
+    }
 }
 
 #[no_mangle]
 pub extern "C" fn recieve_tokens(start: *mut *mut c_char, size: usize) -> FFISafeExprVec {
     let options = Options::new(start, size).unwrap();
     let parser = Parser::new(&options.filename);
-    let tree = match parser {
-        Ok(mut p) => p.run(),
-        Err(e) => err!("{}", e),
-    };
+    let tree = dbg(parser).run();
     let ffi_safe_tree = convert_vec(tree);
     let ffi_safe = FFISafeExprVec {
         ptr: ffi_safe_tree.0,

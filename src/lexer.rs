@@ -48,9 +48,15 @@ pub enum Token {
     Let,
     Bracket(Bracket),
     Newline,
-    Grouping(Vec<Token>),
+    Grouping(Vec<LocatedToken>),
     String(String),
-    FunctionCall(String, Vec<Token>),
+    FunctionCall(String, Vec<LocatedToken>),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct LocatedToken {
+    token: Token,
+    location: Location,
 }
 
 pub struct Interpreter {
@@ -58,10 +64,25 @@ pub struct Interpreter {
     index: usize,
     size: usize,
     inside_string: bool,
+    current_location: Location,
+}
+
+impl LocatedToken {
+    pub fn new(token: Token, location: Location) -> LocatedToken {
+        LocatedToken { token, location }
+    }
+
+    pub fn tok(&self) -> Token {
+        self.token.clone()
+    }
+
+    pub fn loc(&self) -> Location {
+        self.location.clone()
+    }
 }
 
 impl Interpreter {
-    pub fn new(mut buf: BufReader<File>) -> io::Result<Interpreter> {
+    pub fn new(mut buf: BufReader<File>, filename: String) -> io::Result<Interpreter> {
         let mut bytes = vec![];
         buf.read_to_end(&mut bytes)?;
         bytes.push(0);
@@ -72,31 +93,42 @@ impl Interpreter {
             index: 0,
             size,
             inside_string: false,
+            current_location: Location::new(0, 0, filename),
         })
+    }
+
+    fn lt(&self, token: Token) -> LocatedToken {
+        LocatedToken::new(token, self.current_location.clone())
     }
 
     fn next(&mut self) -> Result<char> {
         if self.index < self.size {
             let byte = self.bytes[self.index];
+            let ch = byte as char;
+            if ch == '\n' {
+                self.current_location.next_line();
+            } else {
+                self.current_location.next_column();
+            }
             self.index += 1;
-            Ok(byte as char)
+            Ok(ch)
         } else {
-            Err(EofError.into())
+            EofError::while_parsing(self.current_location.clone())
         }
     }
 
-    fn parse_grouping(&mut self, bracket: Bracket) -> Result<Token> {
+    fn parse_grouping(&mut self, bracket: Bracket) -> Result<LocatedToken> {
         match bracket {
             Bracket::Parens(Is::Closed) | Bracket::Square(Is::Closed) => {
-                return Ok(Token::Bracket(bracket));
+                return Ok(self.lt(Token::Bracket(bracket)));
             }
             _ => {}
         }
 
-        let mut group = vec![Token::Bracket(bracket)];
+        let mut group = vec![self.lt(Token::Bracket(bracket))];
         loop {
             let next = self.parse_next()?;
-            match next {
+            match next.tok() {
                 Token::Bracket(Bracket::Parens(Is::Closed))
                 | Token::Bracket(Bracket::Square(Is::Closed)) => {
                     group.push(next);
@@ -112,12 +144,12 @@ impl Interpreter {
         let open = group.first().unwrap();
         let close = group.last().unwrap();
 
-        if let (Token::Bracket(o), Token::Bracket(c)) = (open, close) {
-            if std::mem::discriminant(o) == std::mem::discriminant(c) {
-                return Ok(Token::Grouping(group));
+        if let (Token::Bracket(o), Token::Bracket(c)) = (open.tok(), close.tok()) {
+            if std::mem::discriminant(&o) == std::mem::discriminant(&c) {
+                return Ok(self.lt(Token::Grouping(group)));
             }
         }
-        return Err(GroupingError.into());
+        return GroupingError::while_parsing(self.current_location.clone());
     }
 
     fn parse_symbol(next: char) -> Option<Symbol> {
@@ -146,7 +178,7 @@ impl Interpreter {
         next.is_alphabetic() || symbols.contains(&next)
     }
 
-    pub fn parse_next(&mut self) -> Result<Token> {
+    pub fn parse_next(&mut self) -> Result<LocatedToken> {
         let mut next = self.next()?;
         let mut identifier = String::new();
 
@@ -159,7 +191,7 @@ impl Interpreter {
                         break;
                     }
                 }
-                return Ok(Token::Newline);
+                return Ok(self.lt(Token::Newline));
             }
             next = self.next()?;
         }
@@ -171,7 +203,7 @@ impl Interpreter {
                 full_string.push(next_char);
                 next_char = self.next()?;
             }
-            return Ok(Token::String(full_string));
+            return Ok(self.lt(Token::String(full_string)));
         }
 
         if Interpreter::ident(next) {
@@ -191,7 +223,7 @@ impl Interpreter {
                 i => Token::Identifier(i.to_string()),
             };
 
-            return Ok(token);
+            return Ok(self.lt(token));
         }
 
         let mut num_str = None;
@@ -216,7 +248,7 @@ impl Interpreter {
                 } else {
                     int_val = Some(num.parse::<isize>().unwrap());
                 }
-                return Ok(Token::Number(int_val, float_val));
+                return Ok(self.lt(Token::Number(int_val, float_val)));
             }
         }
 
@@ -235,11 +267,11 @@ impl Interpreter {
         if let Some(op) = symbol {
             if let Ok(another) = self.next() {
                 if let Some(second) = Interpreter::parse_symbol(another) {
-                    return Ok(Token::Symbol(Symbol::Compound(op.into(), second.into())));
+                    return Ok(self.lt(Token::Symbol(Symbol::Compound(op.into(), second.into()))));
                 }
                 self.index -= 1;
             }
-            return Ok(Token::Symbol(op));
+            return Ok(self.lt(Token::Symbol(op)));
         }
 
         let bracket = match next {
@@ -253,34 +285,34 @@ impl Interpreter {
         if let Some(br) = bracket {
             self.parse_grouping(br)
         } else {
-            Err(UnknownTokenError.into())
+            UnknownTokenError::while_parsing(self.current_location.clone())
         }
     }
 
-    fn compress_fn_calls(tokens: Vec<Token>) -> Vec<Token> {
+    fn compress_fn_calls(tokens: Vec<LocatedToken>) -> Vec<LocatedToken> {
         let mut comp = vec![];
         let mut last = None;
         let mut double_last = None;
 
         for token in tokens {
-            match token {
+            match token.tok() {
                 Token::Grouping(args) => {
                     if let Some(Token::Identifier(name)) = last.clone() {
                         if !matches!(double_last, Some(Token::Let)) {
                             comp.pop();
-                            comp.push(Token::FunctionCall(
+                            comp.push(LocatedToken::new(Token::FunctionCall(
                                 name,
                                 Interpreter::compress_fn_calls(args[1..args.len() - 1].to_vec()),
-                            ));
+                            ), token.loc()));
                             continue;
                         }
                     }
-                    comp.push(Token::Grouping(args));
+                    comp.push(LocatedToken::new(Token::Grouping(args), token.loc()));
                 }
-                token => {
+                t => {
                     double_last = last;
-                    last = Some(token.clone());
-                    comp.push(token);
+                    last = Some(t.clone());
+                    comp.push(LocatedToken::new(t, token.loc()));
                 }
             }
         }
@@ -288,7 +320,7 @@ impl Interpreter {
         return comp;
     }
 
-    pub fn pull(&mut self) -> Result<Vec<Token>> {
+    pub fn pull(&mut self) -> Result<Vec<LocatedToken>> {
         let mut tokens = vec![];
 
         loop {
@@ -297,10 +329,10 @@ impl Interpreter {
                     tokens.push(token);
                 }
                 Err(e) => {
-                    if !self.done() {
-                        return Err(e);
+                    return if !self.done() {
+                        Err(e)
                     } else {
-                        return Ok(Interpreter::compress_fn_calls(tokens));
+                        Ok(Interpreter::compress_fn_calls(tokens))
                     }
                 }
             }

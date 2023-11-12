@@ -60,7 +60,7 @@ Function *CodeGen::LoadFunction(string Name)
     {
         return Fn;
     }
-    dbgs() << "can't find function!\n";
+    errs() << "can't find function!\n";
     return nullptr;
 }
 
@@ -122,7 +122,7 @@ Value *CodeGen::GetPredFCmp(const unique_ptr<WhenExpression> &When)
     Value *Predicate = When->GetPredicate()->Gen(this);
     if (!Predicate)
     {
-        dbgs() << "missing predicate!\n";
+        errs() << "missing predicate!\n";
         return nullptr;
     }
     return Builder->CreateFCmpONE(Predicate, ConstantFP::get(*TheContext, APFloat(0.0)), "ifcond");
@@ -137,7 +137,7 @@ Value *CodeGen::GenChainExpression(ChainExpression *Chain)
     Value *Predicate = GetPredFCmp(Chain->GetExpressions()[0]);
     if (!Predicate)
     {
-        dbgs() << "missing predicate!\n";
+        errs() << "missing predicate!\n";
         return nullptr;
     }
 
@@ -145,6 +145,7 @@ Value *CodeGen::GenChainExpression(ChainExpression *Chain)
     BasicBlock *Current = BasicBlock::Create(*TheContext, "then", Parent);
     BasicBlock *Split = BasicBlock::Create(*TheContext, "else", Parent);
     BasicBlock *Merge = BasicBlock::Create(*TheContext, "ifcont");
+    Type *ReturnType = nullptr;
 
     Builder->CreateCondBr(Predicate, Current, Split);
 
@@ -155,9 +156,13 @@ Value *CodeGen::GenChainExpression(ChainExpression *Chain)
         auto &Last = Exprs[j - 1];
         Builder->SetInsertPoint(Current);
         Value *Result = Last->GetResult()->Gen(this);
+        if (!ReturnType)
+            ReturnType = Result->getType();
+        else if (ReturnType != Result->getType())
+
         if (!Result)
         {
-            dbgs() << "missing result!\n";
+            errs() << "missing result!\n";
             return nullptr;
         }
 
@@ -173,7 +178,7 @@ Value *CodeGen::GenChainExpression(ChainExpression *Chain)
             Predicate = GetPredFCmp(When);
             if (!Predicate)
             {
-                dbgs() << "missing predicate!\n";
+                errs() << "missing predicate!\n";
                 return nullptr;
             }
             Current = BasicBlock::Create(*TheContext, "then", Parent);
@@ -186,7 +191,7 @@ Value *CodeGen::GenChainExpression(ChainExpression *Chain)
             Value *Final = Chain->GetLast()->Gen(this);
             if (!Final)
             {
-                dbgs() << "missing result!\n";
+                errs() << "missing result!\n";
                 return nullptr;
             }
             Builder->CreateBr(Merge);
@@ -216,7 +221,7 @@ Value *CodeGen::GenBinaryOperation(BinaryOperation *Bin)
 
     if (!Left || !Right)
     {
-        dbgs() << "error inside binary operator!\n";
+        errs() << "error inside binary operator!\n";
         return nullptr;
     }
 
@@ -253,7 +258,7 @@ Value *CodeGen::GenBinaryOperation(BinaryOperation *Bin)
         Left = Builder->CreateFCmpUNE(Left, Right, "unetmp");
         break;
     default:
-        dbgs() << "unknown operator!\n";
+        errs() << "unknown operator!\n";
         return nullptr;
     }
 
@@ -273,14 +278,14 @@ Value *CodeGen::GenFunctionCall(FunctionCall *Call)
     Function *Fn = LoadFunction(Call->GetName());
     if (!Fn)
     {
-        dbgs() << "unknown function!\n";
+        errs() << "unknown function!\n";
         return nullptr;
     }
 
     int CallArgCount = Call->GetArgs().size();
     if (Fn->arg_size() != CallArgCount)
     {
-        dbgs() << "mismatched arg count!\n";
+        errs() << "mismatched arg count!\n";
         return nullptr;
     }
 
@@ -290,7 +295,7 @@ Value *CodeGen::GenFunctionCall(FunctionCall *Call)
         Argv.push_back(Call->GetArgs()[i]->Gen(this));
         if (!Argv.back())
         {
-            dbgs() << "missing args!\n";
+            errs() << "missing args!\n";
             return nullptr;
         }
     }
@@ -305,7 +310,7 @@ Value *CodeGen::GenVariableRef(VariableRef *Ref)
     Value *V = NamedValues[Name];
     if (!V)
     {
-        dbgs() << "unknown variable name!";
+        errs() << "unknown variable name!";
         return nullptr;
     }
 

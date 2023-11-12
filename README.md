@@ -1,7 +1,8 @@
 # fx
 
 ## dependencies
-- llvm16
+- llvm16 (+ llc)
+- cmake
 
 ## what works
 - floating point arithmetic (with order of operations!)

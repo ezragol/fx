@@ -17,7 +17,7 @@ impl Options {
             for string in slice {
                 match CStr::from_ptr(string.clone()).to_str() {
                     Ok(s) => argv.push(s.to_string()),
-                    Err(_) => return Err(BadArgumentError.into()),
+                    Err(_) => return BadArgumentError::while_initializing(),
                 }
             }
         }
@@ -29,7 +29,7 @@ impl Options {
                 original_args: argv,
             })
         } else {
-            Err(MissingOutputFileError.into())
+            MissingOutputFileError::while_initializing()
         }
     }
 }

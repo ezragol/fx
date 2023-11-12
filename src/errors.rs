@@ -2,15 +2,76 @@ use std::{error::Error, fmt};
 
 pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct Location {
+    line: usize,
+    column: usize,
+    filename: String,
+}
+
+impl Location {
+    pub fn new(line: usize, column: usize, filename: String) -> Location {
+        Location {
+            line,
+            column,
+            filename,
+        }
+    }
+
+    pub fn next_line(&mut self) {
+        self.column = 0;
+        self.line += 1;
+    }
+
+    pub fn next_column(&mut self) {
+        self.column += 1;
+    }
+
+    pub fn get_message(&self) -> String {
+        format!("@{}:{}:{}\n", self.filename, self.line, self.column)
+    }
+}
+
 macro_rules! def {
     ($name:ident, $error:expr) => {
         #[derive(Debug, Clone)]
-        pub struct $name;
+        pub struct $name {
+            location: Option<Location>,
+            stage_name: String,
+        }
+        impl $name {
+            #[allow(dead_code)]
+            pub fn new<T>(location: Option<Location>, stage_name: &str) -> Result<T> {
+                Err(($name {
+                    location,
+                    stage_name: stage_name.to_string(),
+                })
+                .into())
+            }
+            #[allow(dead_code)]
+            pub fn while_parsing<T>(location: Location) -> Result<T> {
+                $name::new(Some(location), "parsing")
+            }
+            #[allow(dead_code)]
+            pub fn while_initializing<T>() -> Result<T> {
+                $name::new(None, "initializing")
+            }
+        }
+
         impl Error for $name {}
 
         impl fmt::Display for $name {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                write!(f, $error)
+                let msg = if let Some(l) = self.location.clone() {
+                    l.get_message()
+                } else {
+                    String::new()
+                };
+                write!(
+                    f,
+                    "[[ error while {} ]]\n{}{}",
+                    self.stage_name, msg, $error
+                )
             }
         }
     };
