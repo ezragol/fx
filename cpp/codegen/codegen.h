@@ -40,40 +40,17 @@ namespace ast
 {
     class Expr
     {
+        unique_ptr<CodeGen> &Generator;
+
     public:
-        virtual ~Expr(CodeGen *Generator) = default;
+        Expr(unique_ptr<CodeGen> &Generator);
+        const unique_ptr<CodeGen> &GetGenerator();
+
         virtual void Print(string Prefix);
         virtual Value *Gen();
         virtual Type *GetReturnType();
-    };
 
-    class NumberLiteral : public Expr
-    {
-        bool Floating;
-        int IntVal;
-        double FloatVal;
-
-    public:
-        NumberLiteral(bool Floating, int IntVal, double FloatVal);
-        const bool &IsFloating();
-        const int &GetIntVal();
-        const double &GetFloatVal();
-
-        void Print(string Prefix) override;
-        Value *Gen(CodeGen *Generator) override;
-        Type *GetReturnType() override;
-    };
-
-    class StringLiteral : public Expr
-    {
-        string StringVal;
-
-    public:
-        StringLiteral(string StringVal);
-        const string &GetStringVal();
-
-        void Print(string Prefix) override;
-        Value *Gen(CodeGen *Generator) override;
+        virtual ~Expr() = default;
     };
 
     class FunctionDefinition : public Expr
@@ -90,7 +67,7 @@ namespace ast
         const unique_ptr<Expr> &GetBody();
 
         void Print(string Prefix) override;
-        Value *Gen(CodeGen *Generator) override;
+        Value *Gen() override;
     };
 
     class BinaryOperation : public Expr
@@ -106,7 +83,7 @@ namespace ast
         const unique_ptr<Expr> &GetRight();
 
         void Print(string Prefix) override;
-        Value *Gen(CodeGen *Generator) override;
+        Value *Gen() override;
     };
 
     class WhenExpression : public Expr
@@ -121,7 +98,7 @@ namespace ast
         const unique_ptr<Expr> &GetResult();
 
         void Print(string Prefix) override;
-        Value *Gen(CodeGen *Generator) override;
+        Value *Gen() override;
     };
 
     class ChainExpression : public Expr
@@ -136,7 +113,7 @@ namespace ast
         const unique_ptr<Expr> &GetLast();
 
         void Print(string Prefix) override;
-        Value *Gen(CodeGen *Generator) override;
+        Value *Gen() override;
     };
 
     class FunctionCall : public Expr
@@ -150,7 +127,7 @@ namespace ast
         const vector<unique_ptr<Expr>> &GetArgs();
 
         void Print(string Prefix) override;
-        Value *Gen(CodeGen *Generator) override;
+        Value *Gen() override;
     };
 
     class VariableRef : public Expr
@@ -162,7 +139,7 @@ namespace ast
         const string &GetName();
 
         void Print(string Prefix) override;
-        Value *Gen(CodeGen *Generator) override;
+        Value *Gen() override;
     };
 }
 
@@ -182,17 +159,21 @@ class CodeGen
 
 public:
     CodeGen(string TargetTriple, TargetMachine *TheTargetMachine);
+    const unique_ptr<LLVMContext> &GetContext();
+
     int RunPass(string OutFile);
     Function *LoadFunction(string Name);
 
+    Function *GenFunctionDefinition(FunctionDefinition *Func);
     Value *GenNumberLiteral(NumberLiteral *Num);
     Value *GenStringLiteral(ast::StringLiteral *String);
-    Function *GenFunctionDefinition(FunctionDefinition *Func);
     Value *GenChainExpression(ChainExpression *Chain);
     Value *GenBinaryOperation(BinaryOperation *Bin);
     Value *GenWhenExpression(WhenExpression *When);
     Value *GenFunctionCall(FunctionCall *Call);
     Value *GenVariableRef(VariableRef *Ref);
+
+    virtual ~CodeGen() = default;
 };
 
 #endif

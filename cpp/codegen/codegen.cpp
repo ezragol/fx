@@ -1,5 +1,15 @@
 #include "codegen.h"
 
+Expr::Expr(unique_ptr<CodeGen> &Generator)
+    : Generator(Generator){};
+
+const unique_ptr<CodeGen> &Expr::GetGenerator()
+{
+    return Generator;
+}
+
+/////////
+
 CodeGen::CodeGen(string TargetTriple, TargetMachine *TheTargetMachine)
     : TargetTriple(TargetTriple), TheTargetMachine(TheTargetMachine)
 {
@@ -9,6 +19,11 @@ CodeGen::CodeGen(string TargetTriple, TargetMachine *TheTargetMachine)
 
     TheModule->setTargetTriple(TargetTriple);
     TheModule->setDataLayout(TheTargetMachine->createDataLayout());
+}
+
+const unique_ptr<LLVMContext> &CodeGen::GetContext()
+{
+    return TheContext;
 }
 
 int CodeGen::RunPass(string OutFile)
@@ -99,7 +114,7 @@ Function *CodeGen::GenFunctionDefinition(FunctionDefinition *Def)
         NamedValues[Name] = Alloca;
     }
 
-    if (Value *Returned = Def->GetBody()->Gen(this))
+    if (Value *Returned = Def->GetBody()->Gen())
     {
         Builder->CreateRet(Returned);
         verifyFunction(*Fn);
@@ -119,7 +134,7 @@ Value *CodeGen::GenStringLiteral(ast::StringLiteral *String)
 
 Value *CodeGen::GetPredFCmp(const unique_ptr<WhenExpression> &When)
 {
-    Value *Predicate = When->GetPredicate()->Gen(this);
+    Value *Predicate = When->GetPredicate()->Gen();
     if (!Predicate)
     {
         errs() << "missing predicate!\n";
@@ -155,7 +170,7 @@ Value *CodeGen::GenChainExpression(ChainExpression *Chain)
         auto &When = Exprs[j];
         auto &Last = Exprs[j - 1];
         Builder->SetInsertPoint(Current);
-        Value *Result = Last->GetResult()->Gen(this);
+        Value *Result = Last->GetResult()->Gen();
         if (!ReturnType)
             ReturnType = Result->getType();
         else if (ReturnType != Result->getType())
@@ -188,7 +203,7 @@ Value *CodeGen::GenChainExpression(ChainExpression *Chain)
         }
         else
         {
-            Value *Final = Chain->GetLast()->Gen(this);
+            Value *Final = Chain->GetLast()->Gen();
             if (!Final)
             {
                 errs() << "missing result!\n";
@@ -216,8 +231,8 @@ Value *CodeGen::GenChainExpression(ChainExpression *Chain)
 // todo
 Value *CodeGen::GenBinaryOperation(BinaryOperation *Bin)
 {
-    Value *Left = Bin->GetLeft()->Gen(this);
-    Value *Right = Bin->GetRight()->Gen(this);
+    Value *Left = Bin->GetLeft()->Gen();
+    Value *Right = Bin->GetRight()->Gen();
 
     if (!Left || !Right)
     {
@@ -292,7 +307,7 @@ Value *CodeGen::GenFunctionCall(FunctionCall *Call)
     vector<Value *> Argv;
     for (int i = 0; i < CallArgCount; i++)
     {
-        Argv.push_back(Call->GetArgs()[i]->Gen(this));
+        Argv.push_back(Call->GetArgs()[i]->Gen());
         if (!Argv.back())
         {
             errs() << "missing args!\n";
@@ -320,60 +335,8 @@ Value *CodeGen::GenVariableRef(VariableRef *Ref)
 
 /////////
 
-NumberLiteral::NumberLiteral(bool Floating, int IntVal, double FloatVal)
-    : Floating(Floating), IntVal(IntVal), FloatVal(FloatVal) {}
-
-const bool &NumberLiteral::IsFloating()
-{
-    return Floating;
-}
-
-const int &NumberLiteral::GetIntVal()
-{
-    return IntVal;
-}
-
-const double &NumberLiteral::GetFloatVal()
-{
-    return FloatVal;
-}
-
-void NumberLiteral::Print(string Prefix)
-{
-    dbgs() << Prefix << "number { " << Floating << ", " << IntVal << ", " << FloatVal << " }\n";
-}
-
-Value *NumberLiteral::Gen(CodeGen *Generator)
-{
-    return Generator->GenNumberLiteral(this);
-}
-
-Type *NumberLiteral::GetReturnType()
-{
-    if (IsFloating)
-        return Type::getDoubleTy();
-}
-
-ast::StringLiteral::StringLiteral(string StringVal)
-    : StringVal(StringVal) {}
-
-const string &ast::StringLiteral::GetStringVal()
-{
-    return StringVal;
-}
-
-void ast::StringLiteral::Print(string Prefix)
-{
-    dbgs() << Prefix << "string \"" << StringVal << "\"\n";
-}
-
-Value *ast::StringLiteral::Gen(CodeGen *Generator)
-{
-    return Generator->GenStringLiteral(this);
-}
-
 FunctionDefinition::FunctionDefinition(string Name, vector<string> Args, unique_ptr<Expr> Body)
-    : Name(Name), Args(Args), Body(std::move(Body)) {}
+    : Name(Name), Args(Args), Body(std::move(Body)) : Expr({}
 
 const string &FunctionDefinition::GetName()
 {
