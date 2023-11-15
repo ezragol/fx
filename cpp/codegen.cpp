@@ -160,11 +160,11 @@ Value *CodeGen::GenChainExpression(ChainExpression *Chain)
             ReturnType = Result->getType();
         else if (ReturnType != Result->getType())
 
-        if (!Result)
-        {
-            errs() << "missing result!\n";
-            return nullptr;
-        }
+            if (!Result)
+            {
+                errs() << "missing result!\n";
+                return nullptr;
+            }
 
         Builder->CreateBr(Merge);
         Current = Builder->GetInsertBlock();
@@ -202,7 +202,7 @@ Value *CodeGen::GenChainExpression(ChainExpression *Chain)
 
     Parent->insert(Parent->end(), Merge);
     Builder->SetInsertPoint(Merge);
-    PHINode *Phi = Builder->CreatePHI(Type::getDoubleTy(*TheContext), 2, "iftmp");
+    PHINode *Phi = Builder->CreatePHI(ReturnType, 2, "iftmp");
 
     int i = 0;
     for (auto Block : Blocks)
@@ -348,6 +348,12 @@ Value *NumberLiteral::Gen(CodeGen *Generator)
     return Generator->GenNumberLiteral(this);
 }
 
+Type *NumberLiteral::GetReturnType()
+{
+    if (IsFloating)
+        return Type::getDoubleTy();
+}
+
 ast::StringLiteral::StringLiteral(string StringVal)
     : StringVal(StringVal) {}
 
@@ -392,7 +398,7 @@ void FunctionDefinition::Print(string Prefix)
         dbgs() << Arg << " ";
     }
     dbgs() << ") {\n"
-         << Prefix;
+           << Prefix;
     Body->Print(Prefix + "  ");
     dbgs() << Prefix << "}\n";
 }
@@ -402,8 +408,8 @@ Value *FunctionDefinition::Gen(CodeGen *Generator)
     return Generator->GenFunctionDefinition(this);
 }
 
-ChainExpression::ChainExpression(vector<unique_ptr<WhenExpression>> Expressions, unique_ptr<Expr> Last)
-    : Expressions(std::move(Expressions)), Last(std::move(Last)) {}
+ChainExpression::ChainExpression(vector<unique_ptr<WhenExpression>> Expressions, unique_ptr<Expr> Last, Type *ReturnType)
+    : Expressions(std::move(Expressions)), Last(std::move(Last)), ReturnType(ReturnType) {}
 
 const vector<unique_ptr<WhenExpression>> &ChainExpression::GetExpressions()
 {

@@ -4,6 +4,6 @@ extern double entry();
 
 int main() {
     double val = entry();
-    printf("%f", val);
+    printf("%f\n", val);
     return 0;
 }

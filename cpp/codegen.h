@@ -41,9 +41,10 @@ namespace ast
     class Expr
     {
     public:
-        virtual ~Expr() = default;
-        virtual void Print(string Prefix) = 0;
-        virtual Value *Gen(CodeGen *Generator) = 0;
+        virtual ~Expr(CodeGen *Generator) = default;
+        virtual void Print(string Prefix);
+        virtual Value *Gen();
+        virtual Type *GetReturnType();
     };
 
     class NumberLiteral : public Expr
@@ -57,8 +58,10 @@ namespace ast
         const bool &IsFloating();
         const int &GetIntVal();
         const double &GetFloatVal();
+
         void Print(string Prefix) override;
         Value *Gen(CodeGen *Generator) override;
+        Type *GetReturnType() override;
     };
 
     class StringLiteral : public Expr
@@ -68,6 +71,7 @@ namespace ast
     public:
         StringLiteral(string StringVal);
         const string &GetStringVal();
+
         void Print(string Prefix) override;
         Value *Gen(CodeGen *Generator) override;
     };
@@ -77,12 +81,14 @@ namespace ast
         string Name;
         vector<string> Args;
         unique_ptr<Expr> Body;
+        Type *ReturnType;
 
     public:
         FunctionDefinition(string Name, vector<string> Args, unique_ptr<Expr> Body);
         const string &GetName();
         const vector<string> &GetArgs();
         const unique_ptr<Expr> &GetBody();
+
         void Print(string Prefix) override;
         Value *Gen(CodeGen *Generator) override;
     };
@@ -98,6 +104,7 @@ namespace ast
         const uint8_t &GetOp();
         const unique_ptr<Expr> &GetLeft();
         const unique_ptr<Expr> &GetRight();
+
         void Print(string Prefix) override;
         Value *Gen(CodeGen *Generator) override;
     };
@@ -106,11 +113,13 @@ namespace ast
     {
         unique_ptr<Expr> Predicate;
         unique_ptr<Expr> Result;
+        Type *ReturnType;
 
     public:
         WhenExpression(unique_ptr<Expr> Predicate, unique_ptr<Expr> Result);
         const unique_ptr<Expr> &GetPredicate();
         const unique_ptr<Expr> &GetResult();
+
         void Print(string Prefix) override;
         Value *Gen(CodeGen *Generator) override;
     };
@@ -119,11 +128,13 @@ namespace ast
     {
         vector<unique_ptr<WhenExpression>> Expressions;
         unique_ptr<Expr> Last;
+        Type *ReturnType;
 
     public:
-        ChainExpression(vector<unique_ptr<WhenExpression>> Expressions, unique_ptr<Expr> Last);
+        ChainExpression(vector<unique_ptr<WhenExpression>> Expressions, unique_ptr<Expr> Last, Type *ReturnType);
         const vector<unique_ptr<WhenExpression>> &GetExpressions();
         const unique_ptr<Expr> &GetLast();
+
         void Print(string Prefix) override;
         Value *Gen(CodeGen *Generator) override;
     };
@@ -137,6 +148,7 @@ namespace ast
         FunctionCall(string Name, vector<unique_ptr<Expr>> Args);
         const string &GetName();
         const vector<unique_ptr<Expr>> &GetArgs();
+
         void Print(string Prefix) override;
         Value *Gen(CodeGen *Generator) override;
     };
@@ -148,6 +160,7 @@ namespace ast
     public:
         VariableRef(string Name);
         const string &GetName();
+
         void Print(string Prefix) override;
         Value *Gen(CodeGen *Generator) override;
     };
@@ -165,12 +178,12 @@ class CodeGen
     string TargetTriple;
     TargetMachine *TheTargetMachine;
     AllocaInst *CreateEntryBlockAlloca(Function *TheFunction, StringRef VarName);
-    Function *LoadFunction(string Name);
     Value *GetPredFCmp(const unique_ptr<WhenExpression> &When);
 
 public:
     CodeGen(string TargetTriple, TargetMachine *TheTargetMachine);
     int RunPass(string OutFile);
+    Function *LoadFunction(string Name);
 
     Value *GenNumberLiteral(NumberLiteral *Num);
     Value *GenStringLiteral(ast::StringLiteral *String);
