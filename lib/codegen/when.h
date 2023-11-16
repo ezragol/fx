@@ -1,25 +1,27 @@
 #ifndef __WHEN_EXPRESSION_H
 #define __WHEN_EXPRESSION_H
 
-#include "codegen.h"
+#include "ast.h"
 
 namespace ast
 {
     class WhenExpression : public Expr
     {
-        unique_ptr<Expr> Predicate;
-        unique_ptr<Expr> Result;
+        unique_ptr<Expr> predicate;
+        unique_ptr<Expr> result;
 
     public:
-        const unique_ptr<Expr> &GetPredicate();
-        const unique_ptr<Expr> &GetResult();
+        WhenExpression(unique_ptr<Expr> predicate, unique_ptr<Expr> result);
 
-        void SetPredicate(unique_ptr<Expr> BoolPredicate);
-        void SetResult(unique_ptr<Expr> ResultExpr);
+        const unique_ptr<Expr> &getPredicate();
+        const unique_ptr<Expr> &getResult();
 
-        void Print(string Prefix) override;
-        Value *Gen() override;
-        Type *GetType() override;
+        void setPredicate(unique_ptr<Expr> boolPredicate);
+        void setResult(unique_ptr<Expr> resultExpr);
+
+        void print(string prefix) override;
+        Value *gen() override;
+        Type *getType() override;
     };
 }
 

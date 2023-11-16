@@ -1,5 +1,8 @@
 #include "fncall.h"
 
+FunctionCall::FunctionCall(string name, vector<unique_ptr<Expr>> args)
+    : name(name), args(args){};
+
 const string &ast::FunctionCall::getName()
 {
     return name;

@@ -1,49 +1,52 @@
 #include "number.h"
 
-const bool &NumberLiteral::IsFloating()
+NumberLiteral::NumberLiteral(bool floating, int intVal, double floatVal)
+    : floating(floating), intVal(intVal), floatVal(floatVal){};
+
+const bool &NumberLiteral::isFloating()
 {
-    return Floating;
+    return floating;
 }
 
-const int &NumberLiteral::GetIntVal()
+const int &NumberLiteral::getIntVal()
 {
-    return IntVal;
+    return intVal;
 }
 
-const double &NumberLiteral::GetFloatVal()
+const double &NumberLiteral::getFloatVal()
 {
-    return FloatVal;
+    return floatVal;
 }
 
-void NumberLiteral::SetFloating(bool State)
+void NumberLiteral::setFloating(bool state)
 {
-    Floating = State;
+    floating = state;
 }
 
-void NumberLiteral::SetIntVal(int Val)
+void NumberLiteral::setIntVal(int val)
 {
-    IntVal = Val;
+    intVal = val;
 }
 
-void NumberLiteral::SetFloatVal(double Val)
+void NumberLiteral::setFloatVal(double val)
 {
-    FloatVal = Val;
+    floatVal = val;
 }
 
-void NumberLiteral::Print(string Prefix)
+void NumberLiteral::print(string prefix)
 {
-    dbgs() << Prefix << "number { " << Floating << ", " << IntVal << ", " << FloatVal << " }\n";
+    dbgs() << prefix << "number { " << floating << ", " << intVal << ", " << floatVal << " }\n";
 }
 
-Value *NumberLiteral::Gen()
+Value *NumberLiteral::gen()
 {
-    return GetGenerator()->GenNumberLiteral(this);
+    return getGenerator()->genNumberLiteral(this);
 }
 
-Type *NumberLiteral::GetType()
+Type *NumberLiteral::getType()
 {
-    LLVMContext &Context = *(GetGenerator()->GetContext());
-    if (IsFloating)
-        return Type::getDoubleTy(Context);
-    return Type::getInt64Ty(Context);
+    LLVMContext &context = *(getGenerator()->getContext());
+    if (isFloating)
+        return Type::getDoubleTy(context);
+    return Type::getInt64Ty(context);
 }

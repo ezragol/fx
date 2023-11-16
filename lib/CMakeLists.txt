@@ -11,4 +11,8 @@ target_sources(lib
     interface.cpp
     interface.h)
 
-target_link_libraries(lib codegen)
+target_include_directories(lib PUBLIC
+  "${PROJECT_BINARY_DIR}"
+  "${PROJECT_SOURCE_DIR}/target")
+
+target_link_libraries(lib codegen LLVM-${LLVM_VERSION_MAJOR})

@@ -48,10 +48,6 @@ add_executable(${EXEC}
         out.c
         ${EXEC}__.o)
 
-target_link_libraries(fx PUBLIC lib LLVM-${LLVM_VERSION_MAJOR} ${LIB_FX_PATH})
-
-target_include_directories(fx PUBLIC
-        "${PROJECT_BINARY_DIR}"
-        "${PROJECT_SOURCE_DIR}/target")
+target_link_libraries(fx PUBLIC lib)
 
 execute_process(COMMAND cargo build)

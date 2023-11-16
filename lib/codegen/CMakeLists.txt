@@ -2,6 +2,7 @@ add_library(codegen)
 
 target_sources(codegen
   PUBLIC
+    ast.h
     codegen.cpp
     codegen.h
     number.cpp

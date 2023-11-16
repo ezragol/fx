@@ -4,21 +4,21 @@
 
 using namespace std;
 
-class ErrorLocation {
+class Location {
 private:
-    unsigned int Line;
-    unsigned int Column;
-    string Filename;
+    unsigned int line;
+    unsigned int column;
+    string filename;
 public:
-    Location(unsigned int Line, unsigned int Column, string Filename);
-    string GetMessage();
+    Location(unsigned int line, unsigned int column, string filename);
+    string getMessage();
 };
 
 class CodegenError {
 private:
-    string Message;
-    ErrorLocation Location;
+    string message;
+    Location location;
 public:
-    CodegenError(string message, ErrorLocation Location);
-    void Print();
+    CodegenError(string message, Location location);
+    void print();
 };

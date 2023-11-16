@@ -1,40 +1,42 @@
 #include "codegen.h"
 
-Expr::Expr(unique_ptr<CodeGen> &generator)
-    : generator(generator){};
-
 const unique_ptr<CodeGen> &Expr::getGenerator()
 {
     return generator;
 }
 
+void Expr::setGenerator(unique_ptr<CodeGen> codegen)
+{
+    generator = move(codegen);
+}
+
 /////////
 
-CodeGen::CodeGen(string TargetTriple, TargetMachine *TheTargetMachine)
-    : TargetTriple(TargetTriple), TheTargetMachine(TheTargetMachine)
+CodeGen::CodeGen(string targetTriple, TargetMachine *targetMachine)
+    : targetTriple(targetTriple), targetMachine(targetMachine)
 {
-    TheContext = make_unique<LLVMContext>();
-    TheModule = make_unique<Module>("fx", *TheContext);
-    Builder = make_unique<IRBuilder<>>(*TheContext);
+    context = make_unique<LLVMContext>();
+    llvmModule = make_unique<Module>("fx", *context);
+    builder = make_unique<IRBuilder<>>(*context);
 
-    TheModule->setTargetTriple(TargetTriple);
-    TheModule->setDataLayout(TheTargetMachine->createDataLayout());
+    llvmModule->setTargetTriple(targetTriple);
+    llvmModule->setDataLayout(targetMachine->createDataLayout());
 }
 
-const unique_ptr<LLVMContext> &CodeGen::GetContext()
+const unique_ptr<LLVMContext> &CodeGen::getContext()
 {
-    return TheContext;
+    return context;
 }
 
-int CodeGen::RunPass(string OutFile)
+int CodeGen::runPass(string outFile)
 {
-    auto FileType = CGFT_ObjectFile;
-    std::error_code EC;
-    raw_fd_ostream Dest(OutFile, EC, sys::fs::OF_None);
+    auto fileType = CGFT_ObjectFile;
+    std::error_code ec;
+    raw_fd_ostream dest(outFile, ec, sys::fs::OF_None);
 
-    if (EC)
+    if (ec)
     {
-        errs() << "Could not open file: " << EC.message();
+        errs() << "Could not open file: " << ec.message();
         return 1;
     }
 
@@ -42,7 +44,7 @@ int CodeGen::RunPass(string OutFile)
     FunctionAnalysisManager FAM;
     CGSCCAnalysisManager CGAM;
     ModuleAnalysisManager MAM;
-    PassBuilder PB(TheTargetMachine);
+    PassBuilder PB(targetMachine);
 
     PB.registerModuleAnalyses(MAM);
     PB.registerCGSCCAnalyses(CGAM);
@@ -51,10 +53,10 @@ int CodeGen::RunPass(string OutFile)
     PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
     ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(OptimizationLevel::O2);
-    MPM.run(*TheModule, MAM);
+    MPM.run(*llvmModule, MAM);
 
-    WriteBitcodeToFile(*TheModule, Dest);
-    Dest.flush();
+    WriteBitcodeToFile(*llvmModule, dest);
+    dest.flush();
 
     // TheModule->print(dbgs(), nullptr);
 
@@ -62,215 +64,217 @@ int CodeGen::RunPass(string OutFile)
 }
 
 // taken from llvm examples (like most things)
-AllocaInst *CodeGen::CreateEntryBlockAlloca(Function *TheFunction, StringRef VarName)
+AllocaInst *CodeGen::createEntryBlockAlloca(Function *function, StringRef varName)
 {
-    IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
-                     TheFunction->getEntryBlock().begin());
-    return TmpB.CreateAlloca(Type::getDoubleTy(*TheContext), nullptr, VarName);
+    IRBuilder<> TmpB(&function->getEntryBlock(),
+                     function->getEntryBlock().begin());
+    return TmpB.CreateAlloca(Type::getDoubleTy(*context), nullptr, varName);
 }
 
-Function *CodeGen::LoadFunction(string Name)
+Function *CodeGen::loadFunction(string name)
 {
-    if (auto *Fn = TheModule->getFunction(Name))
+    if (auto *fn = llvmModule->getFunction(name))
     {
-        return Fn;
+        return fn;
     }
     errs() << "can't find function!\n";
     return nullptr;
 }
 
-Value *CodeGen::GenNumberLiteral(NumberLiteral *Num)
+Value *CodeGen::genNumberLiteral(NumberLiteral *num)
 {
-    if (Num->IsFloating())
+    if (num->isFloating())
     {
-        return ConstantFP::get(*TheContext, APFloat(Num->GetFloatVal()));
+        return ConstantFP::get(*context, APFloat(num->getFloatVal()));
     }
     else
     {
-        const int &intVal = Num->GetIntVal();
+        const int &intVal = num->getIntVal();
         uint8_t bits = floor(log2(intVal)) + 1;
-        return ConstantInt::get(*TheContext, APInt(bits, intVal));
+        return ConstantInt::get(*context, APInt(bits, intVal));
     }
 }
 
-Function *CodeGen::GenFunctionDefinition(FunctionDefinition *Def)
+Function *CodeGen::genFunctionDefinition(FunctionDefinition *def)
 {
     // define argument types and return type
-    vector<Type *> ArgT(Def->GetArgs().size(), Type::getDoubleTy(*TheContext));
-    FunctionType *FuncT = FunctionType::get(Type::getDoubleTy(*TheContext), ArgT, false);
-    Function *Fn = Function::Create(FuncT, Function::ExternalLinkage, Def->GetName(), TheModule.get());
-    BasicBlock *Block = BasicBlock::Create(*TheContext, "entry", Fn);
-    Builder->SetInsertPoint(Block);
-    NamedValues.clear();
+    vector<Type *> argT(def->getArgs().size(), Type::getDoubleTy(*context));
+    FunctionType *fnType = FunctionType::get(Type::getDoubleTy(*context), argT, false);
+    Function *fn = Function::Create(fnType, Function::ExternalLinkage, def->getName(), llvmModule.get());
+    BasicBlock *block = BasicBlock::Create(*context, "entry", fn);
+    builder->SetInsertPoint(block);
+    namedValues.clear();
 
     // create a "named value" (aka variable) for each argument of the function
     unsigned int i = 0;
-    for (auto &Arg : Fn->args())
+    for (auto &arg : fn->args())
     {
-        string Name = Def->GetArgs()[i++];
-        Arg.setName(Name);
-        AllocaInst *Alloca = CreateEntryBlockAlloca(Fn, Name);
-        Builder->CreateStore(&Arg, Alloca);
-        NamedValues[Name] = Alloca;
+        string name = def->getArgs()[i++];
+        arg.setName(name);
+        AllocaInst *alloca = createEntryBlockAlloca(fn, name);
+        builder->CreateStore(&arg, alloca);
+        namedValues[name] = alloca;
     }
 
-    if (Value *Returned = Def->GetBody()->Gen())
+    if (Value *returned = def->getBody()->gen())
     {
-        Builder->CreateRet(Returned);
-        verifyFunction(*Fn);
-        return Fn;
+        builder->CreateRet(returned);
+        verifyFunction(*fn);
+        return fn;
     }
 
-    Fn->eraseFromParent();
+    fn->eraseFromParent();
     errs() << "missing return val!\n";
     return nullptr;
 }
 
 // todo
-Value *CodeGen::GenStringLiteral(ast::StringLiteral *String)
+Value *CodeGen::genStringLiteral(ast::StringLiteral *string)
 {
-    return ConstantFP::get(*TheContext, APFloat(0.0));
+    return ConstantFP::get(*context, APFloat(0.0));
 }
 
-Value *CodeGen::GetPredFCmp(const unique_ptr<WhenExpression> &When)
+Value *CodeGen::getPredFCmp(const unique_ptr<WhenExpression> &when)
 {
-    Value *Predicate = When->GetPredicate()->Gen();
-    if (!Predicate)
+    Value *predicate = when->getPredicate()->gen();
+    if (!predicate)
     {
         errs() << "missing predicate!\n";
         return nullptr;
     }
-    return Builder->CreateFCmpONE(Predicate, ConstantFP::get(*TheContext, APFloat(0.0)), "ifcond");
+    return builder->CreateFCmpONE(predicate, ConstantFP::get(*context, APFloat(0.0)), "ifcond");
 }
 
 // todo
-Value *CodeGen::GenChainExpression(ChainExpression *Chain)
+Value *CodeGen::genChainExpression(ChainExpression *chain)
 {
-    vector<BasicBlock *> Blocks;
-    vector<Value *> Results;
+    vector<BasicBlock *> blocks;
+    vector<Value *> results;
 
-    Value *Predicate = GetPredFCmp(Chain->GetExpressions()[0]);
-    if (!Predicate)
+    Value *predicate = getPredFCmp(chain->getExpressions()[0]);
+    if (!predicate)
     {
         errs() << "missing predicate!\n";
         return nullptr;
     }
 
-    Function *Parent = Builder->GetInsertBlock()->getParent();
-    BasicBlock *Current = BasicBlock::Create(*TheContext, "then", Parent);
-    BasicBlock *Split = BasicBlock::Create(*TheContext, "else", Parent);
-    BasicBlock *Merge = BasicBlock::Create(*TheContext, "ifcont");
-    Type *ReturnType = nullptr;
+    Function *parent = builder->GetInsertBlock()->getParent();
+    BasicBlock *current = BasicBlock::Create(*context, "then", parent);
+    BasicBlock *split = BasicBlock::Create(*context, "else", parent);
+    BasicBlock *merge = BasicBlock::Create(*context, "ifcont");
+    Type *returnType = nullptr;
 
-    Builder->CreateCondBr(Predicate, Current, Split);
+    builder->CreateCondBr(predicate, current, split);
 
-    const vector<unique_ptr<WhenExpression>> &Exprs = Chain->GetExpressions();
-    for (int j = 1; j <= Exprs.size(); j++)
+    const vector<unique_ptr<WhenExpression>> &exprs = chain->getExpressions();
+    for (int j = 1; j <= exprs.size(); j++)
     {
-        auto &When = Exprs[j];
-        auto &Last = Exprs[j - 1];
-        Builder->SetInsertPoint(Current);
-        Value *Result = Last->GetResult()->Gen();
-        if (!ReturnType)
-            ReturnType = Result->getType();
-        else if (ReturnType != Result->getType())
+        auto &when = exprs[j];
+        auto &last = exprs[j - 1];
+        builder->SetInsertPoint(current);
+        Value *result = last->getResult()->gen();
+        if (!returnType)
+            returnType = result->getType();
+        else if (returnType != result->getType())
+            errs() << "mismatched types!\n";
+        return nullptr;
 
-            if (!Result)
-            {
-                errs() << "missing result!\n";
-                return nullptr;
-            }
-
-        Builder->CreateBr(Merge);
-        Current = Builder->GetInsertBlock();
-
-        Blocks.push_back(Current);
-        Results.push_back(Result);
-
-        Builder->SetInsertPoint(Split);
-        if (j < Exprs.size())
+        if (!result)
         {
-            Predicate = GetPredFCmp(When);
-            if (!Predicate)
+            errs() << "missing result!\n";
+            return nullptr;
+        }
+
+        builder->CreateBr(merge);
+        current = builder->GetInsertBlock();
+
+        blocks.push_back(current);
+        results.push_back(result);
+
+        builder->SetInsertPoint(split);
+        if (j < exprs.size())
+        {
+            predicate = getPredFCmp(when);
+            if (!predicate)
             {
                 errs() << "missing predicate!\n";
                 return nullptr;
             }
-            Current = BasicBlock::Create(*TheContext, "then", Parent);
-            Split = BasicBlock::Create(*TheContext, "else", Parent);
+            current = BasicBlock::Create(*context, "then", parent);
+            split = BasicBlock::Create(*context, "else", parent);
 
-            Builder->CreateCondBr(Predicate, Current, Split);
+            builder->CreateCondBr(predicate, current, split);
         }
         else
         {
-            Value *Final = Chain->GetLast()->Gen();
-            if (!Final)
+            Value *final = chain->getLast()->gen();
+            if (!final)
             {
                 errs() << "missing result!\n";
                 return nullptr;
             }
-            Builder->CreateBr(Merge);
-            Blocks.push_back(Split);
-            Results.push_back(Final);
+            builder->CreateBr(merge);
+            blocks.push_back(split);
+            results.push_back(final);
         }
     }
 
-    Parent->insert(Parent->end(), Merge);
-    Builder->SetInsertPoint(Merge);
-    PHINode *Phi = Builder->CreatePHI(ReturnType, 2, "iftmp");
+    parent->insert(parent->end(), merge);
+    builder->SetInsertPoint(merge);
+    PHINode *phi = builder->CreatePHI(returnType, 2, "iftmp");
 
     int i = 0;
-    for (auto Block : Blocks)
+    for (auto block : blocks)
     {
-        Phi->addIncoming(Results[i++], Block);
+        phi->addIncoming(results[i++], block);
     }
 
-    return Phi;
+    return phi;
 }
 
 // todo
-Value *CodeGen::GenBinaryOperation(BinaryOperation *Bin)
+Value *CodeGen::genBinaryOperation(BinaryOperation *bin)
 {
-    Value *Left = Bin->GetLeft()->Gen();
-    Value *Right = Bin->GetRight()->Gen();
+    Value *left = bin->getLeft()->gen();
+    Value *right = bin->getRight()->gen();
 
-    if (!Left || !Right)
+    if (!left || !right)
     {
         errs() << "error inside binary operator!\n";
         return nullptr;
     }
 
-    switch (Bin->GetOp())
+    switch (bin->getOp())
     {
     case 1:
-        return Builder->CreateFMul(Left, Right, "multmp");
+        return builder->CreateFMul(left, right, "multmp");
     case 2:
-        return Builder->CreateFDiv(Left, Right, "divtmp");
+        return builder->CreateFDiv(left, right, "divtmp");
     case 3:
-        return Builder->CreateFRem(Left, Right, "remtmp");
+        return builder->CreateFRem(left, right, "remtmp");
     case 4:
-        return Builder->CreateFAdd(Left, Right, "addtmp");
+        return builder->CreateFAdd(left, right, "addtmp");
     case 5:
-        return Builder->CreateFSub(Left, Right, "subtmp");
+        return builder->CreateFSub(left, right, "subtmp");
 
     // boolean operators
     case 6:
-        Left = Builder->CreateFCmpULT(Left, Right, "ulttmp");
+        left = builder->CreateFCmpULT(left, right, "ulttmp");
         break;
     case 7:
-        Left = Builder->CreateFCmpUGT(Left, Right, "ugttmp");
+        left = builder->CreateFCmpUGT(left, right, "ugttmp");
         break;
     case 10:
-        Left = Builder->CreateFCmpULE(Left, Right, "uletmp");
+        left = builder->CreateFCmpULE(left, right, "uletmp");
         break;
     case 11:
-        Left = Builder->CreateFCmpUGE(Left, Right, "ugetmp");
+        left = builder->CreateFCmpUGE(left, right, "ugetmp");
         break;
     case 12:
-        Left = Builder->CreateFCmpUEQ(Left, Right, "ueqtmp");
+        left = builder->CreateFCmpUEQ(left, right, "ueqtmp");
         break;
     case 13:
-        Left = Builder->CreateFCmpUNE(Left, Right, "unetmp");
+        left = builder->CreateFCmpUNE(left, right, "unetmp");
         break;
     default:
         errs() << "unknown operator!\n";
@@ -278,57 +282,57 @@ Value *CodeGen::GenBinaryOperation(BinaryOperation *Bin)
     }
 
     // convert int to float
-    return Builder->CreateUIToFP(Left, Type::getDoubleTy(*TheContext), "booltmp");
+    return builder->CreateUIToFP(left, Type::getDoubleTy(*context), "booltmp");
 }
 
 // todo
-Value *CodeGen::GenWhenExpression(WhenExpression *When)
+Value *CodeGen::genWhenExpression(WhenExpression *when)
 {
-    return ConstantFP::get(*TheContext, APFloat(0.0));
+    return ConstantFP::get(*context, APFloat(0.0));
 }
 
 // todo
-Value *CodeGen::GenFunctionCall(FunctionCall *Call)
+Value *CodeGen::genFunctionCall(FunctionCall *call)
 {
-    Function *Fn = LoadFunction(Call->GetName());
-    if (!Fn)
+    Function *fn = loadFunction(call->getName());
+    if (!fn)
     {
         errs() << "unknown function!\n";
         return nullptr;
     }
 
-    int CallArgCount = Call->GetArgs().size();
-    if (Fn->arg_size() != CallArgCount)
+    int callArgCount = call->getArgs().size();
+    if (fn->arg_size() != callArgCount)
     {
         errs() << "mismatched arg count!\n";
         return nullptr;
     }
 
-    vector<Value *> Argv;
-    for (int i = 0; i < CallArgCount; i++)
+    vector<Value *> argv;
+    for (int i = 0; i < callArgCount; i++)
     {
-        Argv.push_back(Call->GetArgs()[i]->Gen());
-        if (!Argv.back())
+        argv.push_back(call->getArgs()[i]->gen());
+        if (!argv.back())
         {
             errs() << "missing args!\n";
             return nullptr;
         }
     }
 
-    return Builder->CreateCall(Fn, Argv, "calltmp");
+    return builder->CreateCall(fn, argv, "calltmp");
 }
 
 // todo
-Value *CodeGen::GenVariableRef(VariableRef *Ref)
+Value *CodeGen::genVariableRef(VariableRef *ref)
 {
-    string Name = Ref->GetName();
-    Value *V = NamedValues[Name];
-    if (!V)
+    string name = ref->getName();
+    Value *var = namedValues[name];
+    if (!var)
     {
         errs() << "unknown variable name!";
         return nullptr;
     }
 
     // Load the value.
-    return Builder->CreateLoad(Type::getDoubleTy(*TheContext), V, Name);
+    return builder->CreateLoad(Type::getDoubleTy(*context), var, name);
 }

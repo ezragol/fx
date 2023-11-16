@@ -1,39 +1,39 @@
 #include "compiler.h"
 
 // all taken from llvm examples
-int Compile(int argc, char *argv[])
+int compile(int argc, char *argv[])
 {
-    auto TargetTriple = sys::getDefaultTargetTriple();
+    auto targetTriple = sys::getDefaultTargetTriple();
     InitializeNativeTarget();
     InitializeNativeTargetAsmParser();
     InitializeNativeTargetAsmPrinter();
-    string Error;
-    auto Target = TargetRegistry::lookupTarget(TargetTriple, Error);
+    string error;
+    auto target = TargetRegistry::lookupTarget(targetTriple, error);
 
-    if (!Target)
+    if (!target)
     {
-        errs() << Error;
+        errs() << error;
         return 1;
     }
-    auto CPU = "generic";
-    auto Features = "";
+    auto cpu = "generic";
+    auto features = "";
 
-    TargetOptions Opt;
-    auto RM = optional<Reloc::Model>();
-    auto TargetMachine = Target->createTargetMachine(TargetTriple, CPU, Features, Opt, RM);
-    CodeGen Generator(TargetTriple, TargetMachine);
-    FFISafeExprVec Tokens = recieve_tokens(argv, argc);
-    auto Tree = ReGenerateAST(Tokens);
-    drop_all(Tokens.ptr, Tokens.len);
+    TargetOptions opt;
+    auto rm = optional<Reloc::Model>();
+    auto targetMachine = target->createTargetMachine(targetTriple, cpu, features, opt, rm);
+    CodeGen generator(targetTriple, targetMachine);
+    FFISafeExprVec tokens = recieve_tokens(argv, argc);
+    auto tree = reGenerateAST(tokens);
+    drop_all(tokens.ptr, tokens.len);
 
-    for (auto &branch : Tree)
+    for (auto &branch : tree)
     {
-        branch->Gen(&Generator);
+        branch->gen();
     }
 
-    if (Generator.RunPass(Tokens.out))
+    if (generator.runPass(tokens.out))
         return 1;
 
-    delete TargetMachine;
+    delete targetMachine;
     return 0;
 }

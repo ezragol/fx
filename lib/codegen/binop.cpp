@@ -1,5 +1,8 @@
 #include "binop.h"
 
+BinaryOperation::BinaryOperation(uint8_t op, unique_ptr<Expr> left, unique_ptr<Expr> right)
+    : op(op), left(move(left)), right(move(right)){};
+
 const uint8_t &BinaryOperation::getOp()
 {
     return op;
@@ -34,7 +37,7 @@ void BinaryOperation::print(string prefix)
 {
     dbgs() << prefix << "op " << unsigned(op) << " { \n";
     left->print(prefix + "  ");
-    light->print(prefix + "  ");
+    right->print(prefix + "  ");
     dbgs() << prefix << "}\n";
 }
 

@@ -1,28 +1,30 @@
 #ifndef __NUMBER_LITERAL_H
 #define __NUMBER_LITERAL_H
 
-#include "codegen.h"
+#include "ast.h"
 
 namespace ast
 {
     class NumberLiteral : public Expr
     {
-        bool Floating;
-        int IntVal;
-        double FloatVal;
+        bool floating;
+        int intVal;
+        double floatVal;
 
     public:
-        const bool &IsFloating();
-        const int &GetIntVal();
-        const double &GetFloatVal();
+        NumberLiteral(bool floating, int intVal, double floatVal);
 
-        void SetFloating(bool State);
-        void SetIntVal(int Val);
-        void SetFloatVal(double Val);
+        const bool &isFloating();
+        const int &getIntVal();
+        const double &getFloatVal();
 
-        void Print(string Prefix) override;
-        Value *Gen() override;
-        Type *GetType() override;
+        void setFloating(bool state);
+        void setIntVal(int val);
+        void setFloatVal(double val);
+
+        void print(string prefix) override;
+        Value *gen() override;
+        Type *getType() override;
     };
 }
 

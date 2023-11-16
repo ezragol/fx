@@ -1,22 +1,24 @@
 #ifndef __VARIABLE_REF_H
 #define __VARIABLE_REF_H
 
-#include "codegen.h"
+#include "ast.h"
 
 namespace ast
 {
     class VariableRef : public Expr
     {
-        string Name;
+        string name;
 
     public:
-        const string &GetName();
+        VariableRef(string name);
 
-        void SetName(string VarName);
+        const string &getName();
 
-        void Print(string Prefix) override;
-        Value *Gen() override;
-        Type *GetType() override;
+        void setName(string varName);
+
+        void print(string prefix) override;
+        Value *gen() override;
+        Type *getType() override;
     };
 }
 

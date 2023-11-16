@@ -1,54 +1,57 @@
 #include "fndef.h"
 
-const string &FunctionDefinition::GetName()
+FunctionDefinition::FunctionDefinition(string name, vector<string> args, unique_ptr<Expr> fnBody)
+    : name(name), args(args), body(move(body)){};
+
+const string &FunctionDefinition::getName()
 {
-    return Name;
+    return name;
 }
 
-const vector<string> &FunctionDefinition::GetArgs()
+const vector<string> &FunctionDefinition::getArgs()
 {
-    return Args;
+    return args;
 }
 
-const unique_ptr<Expr> &FunctionDefinition::GetBody()
+const unique_ptr<Expr> &FunctionDefinition::getBody()
 {
-    return Body;
+    return body;
 }
 
-void FunctionDefinition::SetName(string FnName)
+void FunctionDefinition::setName(string fnName)
 {
-    Name = FnName;
+    name = fnName;
 }
 
-void FunctionDefinition::SetArgs(vector<string> FnArgs)
+void FunctionDefinition::setArgs(vector<string> fnArgs)
 {
-    Args = FnArgs;
+    args = fnArgs;
 }
 
-void FunctionDefinition::SetBody(unique_ptr<Expr> FnBody)
+void FunctionDefinition::setBody(unique_ptr<Expr> fnBody)
 {
-    Body = move(FnBody);
+    body = move(fnBody);
 }
 
-void FunctionDefinition::Print(string Prefix)
+void FunctionDefinition::print(string prefix)
 {
-    dbgs() << Prefix << "fn " << Name << " ( ";
-    for (string Arg : Args)
+    dbgs() << prefix << "fn " << name << " ( ";
+    for (string arg : args)
     {
-        dbgs() << Arg << " ";
+        dbgs() << arg << " ";
     }
     dbgs() << ") {\n"
-           << Prefix;
-    Body->Print(Prefix + "  ");
-    dbgs() << Prefix << "}\n";
+           << prefix;
+    body->print(prefix + "  ");
+    dbgs() << prefix << "}\n";
 }
 
-Value *FunctionDefinition::Gen()
+Value *FunctionDefinition::gen()
 {
-    return GetGenerator()->GenFunctionDefinition(this);
+    return getGenerator()->genFunctionDefinition(this);
 }
 
-Type *FunctionDefinition::GetType()
+Type *FunctionDefinition::getType()
 {
-    return Body->GetType();
+    return body->getType();
 }

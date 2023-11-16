@@ -1,7 +1,7 @@
 #ifndef __CHAIN_EXPRESSION_H
 #define __CHAIN_EXPRESSION_H
 
-#include "codegen.h"
+#include "ast.h"
 
 namespace ast
 {
@@ -11,6 +11,8 @@ namespace ast
         unique_ptr<Expr> last;
 
     public:
+        ChainExpression(vector<unique_ptr<WhenExpression>> expressions, unique_ptr<Expr> last);
+
         const vector<unique_ptr<WhenExpression>> &getExpressions();
         const unique_ptr<Expr> &getLast();
 

@@ -1,39 +1,42 @@
 #include "when.h"
 
-const unique_ptr<Expr> &WhenExpression::GetPredicate()
+WhenExpression::WhenExpression(unique_ptr<Expr> predicate, unique_ptr<Expr> result)
+    : predicate(move(predicate)), result(move(result)){};
+
+const unique_ptr<Expr> &WhenExpression::getPredicate()
 {
-    return Predicate;
+    return predicate;
 }
 
-const unique_ptr<Expr> &WhenExpression::GetResult()
+const unique_ptr<Expr> &WhenExpression::getResult()
 {
-    return Result;
+    return result;
 }
 
-void WhenExpression::SetPredicate(unique_ptr<Expr> BoolPredicate)
+void WhenExpression::setPredicate(unique_ptr<Expr> boolPredicate)
 {
-    Predicate = move(BoolPredicate);
+    predicate = move(boolPredicate);
 }
 
-void WhenExpression::SetResult(unique_ptr<Expr> ResultExpr)
+void WhenExpression::setResult(unique_ptr<Expr> resultExpr)
 {
-    Result = move(ResultExpr);
+    result = move(resultExpr);
 }
 
-void WhenExpression::Print(string Prefix)
+void WhenExpression::print(string prefix)
 {
-    dbgs() << Prefix << "when {\n";
-    Predicate->Print(Prefix + "  ");
-    Result->Print(Prefix + "  then ");
-    dbgs() << Prefix << "}\n";
+    dbgs() << prefix << "when {\n";
+    predicate->print(prefix + "  ");
+    result->print(prefix + "  then ");
+    dbgs() << prefix << "}\n";
 }
 
-Value *WhenExpression::Gen()
+Value *WhenExpression::gen()
 {
-    return GetGenerator()->GenWhenExpression(this);
+    return getGenerator()->genWhenExpression(this);
 }
 
-Type *WhenExpression::GetType()
+Type *WhenExpression::getType()
 {
-    return Result->GetType();
+    return result->getType();
 }

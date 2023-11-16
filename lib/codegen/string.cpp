@@ -1,28 +1,30 @@
 #include "string.h"
 
-const string &ast::StringLiteral::GetStringVal()
+StringLiteral::StringLiteral(string stringVal)
+    : stringVal(stringVal){};
+
+const string &ast::StringLiteral::getStringVal()
 {
-    return StringVal;
+    return stringVal;
 }
 
-void ast::StringLiteral::SetStringVal(string Val)
+void ast::StringLiteral::setStringVal(string val)
 {
-    StringVal = Val;
+    stringVal = val;
 }
 
-void ast::StringLiteral::Print(string Prefix)
+void ast::StringLiteral::print(string prefix)
 {
-    dbgs() << Prefix << "string \"" << StringVal << "\"\n";
+    dbgs() << prefix << "string \"" << stringVal << "\"\n";
 }
 
-Value *ast::StringLiteral::Gen()
+Value *ast::StringLiteral::gen()
 {
-    return GetGenerator()->GenStringLiteral(this);
+    return getGenerator()->genStringLiteral(this);
 }
 
-// todo??
-
-Type *ast::StringLiteral::GetType()
+// TOOD
+Type *ast::StringLiteral::getType()
 {
-    return Type::Get
+    return Type::get
 }

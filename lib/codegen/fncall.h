@@ -1,7 +1,7 @@
 #ifndef __FUNCTION_CALL_H
 #define __FUNCTION_CALL_H
 
-#include "codegen.h"
+#include "ast.h"
 
 namespace ast
 {
@@ -11,6 +11,8 @@ namespace ast
         vector<unique_ptr<Expr>> args;
 
     public:
+        FunctionCall(string name, vector<unique_ptr<Expr>> args);
+
         const string &getName();
         const vector<unique_ptr<Expr>> &getArgs();
 

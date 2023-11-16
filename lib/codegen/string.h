@@ -1,23 +1,24 @@
 #ifndef __STRING_LITERAL_H
 #define __STRING_LITERAL_H
 
-#include "codegen.h"
+#include "ast.h"
 
 namespace ast
 {
-
     class StringLiteral : public Expr
     {
-        string StringVal;
+        string stringVal;
 
     public:
-        const string &GetStringVal();
+        StringLiteral(string stringVal);
 
-        void SetStringVal(string Val);
+        const string &getStringVal();
 
-        void Print(string Prefix) override;
-        Value *Gen() override;
-        Type *GetType() override;
+        void setStringVal(string val);
+
+        void print(string prefix) override;
+        Value *gen() override;
+        Type *getType() override;
     };
 
 }

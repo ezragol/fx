@@ -1,102 +1,102 @@
 #include "interface.h"
 
-vector<unique_ptr<Expr>> TranslateExpressionVec(const FFISafeExpr *Start, uint8_t Len)
+vector<unique_ptr<Expr>> translateExpressionVec(const FFISafeExpr *start, uint8_t len)
 {
-    vector<unique_ptr<Expr>> Vec;
-    for (uint8_t i = 0; i < Len; i++)
+    vector<unique_ptr<Expr>> vec;
+    for (uint8_t i = 0; i < len; i++)
     {
-        Vec.push_back(TranslateExpression(Start + i));
+        vec.push_back(translateExpression(start + i));
     }
-    return Vec;
+    return vec;
 }
 
-vector<string> TranslateStringVec(const char *const *Start, uint32_t Len)
+vector<string> translateStringVec(const char *const *start, uint32_t len)
 {
-    vector<string> Vec;
-    for (int i = 0; i < Len; i++)
+    vector<string> vec;
+    for (int i = 0; i < len; i++)
     {
-        string Deref(*(Start + i));
-        Vec.push_back(Deref);
+        string deref(*(start + i));
+        vec.push_back(deref);
     }
-    return Vec;
+    return vec;
 }
 
-unique_ptr<WhenExpression> TranslateWhen(const FFISafeExpr *Ptr)
+unique_ptr<WhenExpression> translateWhen(const FFISafeExpr *ptr)
 {
     return make_unique<WhenExpression>(
-        TranslateExpression(Ptr->when_expression._0),
-        TranslateExpression(Ptr->when_expression._1));
+        translateExpression(ptr->when_expression._0),
+        translateExpression(ptr->when_expression._1));
 }
 
-unique_ptr<Expr> TranslateExpression(const FFISafeExpr *Ptr)
+unique_ptr<Expr> translateExpression(const FFISafeExpr *ptr)
 {
-    switch (Ptr->tag)
+    switch (ptr->tag)
     {
     case FFISafeExpr::Tag::NumberLiteral:
     {
-        return make_unique<NumberLiteral>(Ptr->number_literal._0, Ptr->number_literal._1, Ptr->number_literal._2);
+        return make_unique<NumberLiteral>(ptr->number_literal._0, ptr->number_literal._1, ptr->number_literal._2);
     }
     case FFISafeExpr::Tag::StringLiteral:
     {
-        return make_unique<ast::StringLiteral>(Ptr->string_literal._0);
+        return make_unique<ast::StringLiteral>(ptr->string_literal._0);
     }
     case FFISafeExpr::Tag::FunctionDefinition:
     {
-        string FuncName = Ptr->function_definition._0;
-        vector<string> Args = TranslateStringVec(Ptr->function_definition._1, Ptr->function_definition._2);
-        return make_unique<FunctionDefinition>(FuncName, Args, TranslateExpression(Ptr->function_definition._3));
+        string funcName = ptr->function_definition._0;
+        vector<string> args = translateStringVec(ptr->function_definition._1, ptr->function_definition._2);
+        return make_unique<FunctionDefinition>(funcName, args, translateExpression(ptr->function_definition._3));
     }
     case FFISafeExpr::Tag::ChainExpression:
     {
-        const FFISafeExpr *Start = Ptr->chain_expression._0;
-        uintptr_t Size = Ptr->chain_expression._1 - 1;
-        vector<unique_ptr<WhenExpression>> WhenVec;
+        const FFISafeExpr *start = ptr->chain_expression._0;
+        uintptr_t size = ptr->chain_expression._1 - 1;
+        vector<unique_ptr<WhenExpression>> whenVec;
 
-        for (uint8_t i = 0; i < Size; i++)
+        for (uint8_t i = 0; i < size; i++)
         {
-            WhenVec.push_back(TranslateWhen(Start + i));
+            whenVec.push_back(translateWhen(start + i));
         }
-        return make_unique<ChainExpression>(std::move(WhenVec), TranslateExpression(Start + Size));
+        return make_unique<ChainExpression>(std::move(whenVec), translateExpression(start + size));
     }
     case FFISafeExpr::Tag::BinaryOperation:
     {
-        return make_unique<BinaryOperation>(Ptr->binary_operation._0,
-                                            TranslateExpression(Ptr->binary_operation._1),
-                                            TranslateExpression(Ptr->binary_operation._2));
+        return make_unique<BinaryOperation>(ptr->binary_operation._0,
+                                            translateExpression(ptr->binary_operation._1),
+                                            translateExpression(ptr->binary_operation._2));
     }
     case FFISafeExpr::Tag::WhenExpression:
     {
-        return TranslateWhen(Ptr);
+        return translateWhen(ptr);
     }
     case FFISafeExpr::Tag::FunctionCall:
     {
         return make_unique<FunctionCall>(
-            Ptr->function_call._0,
-            TranslateExpressionVec(Ptr->function_call._1, Ptr->function_call._2));
+            ptr->function_call._0,
+            translateExpressionVec(ptr->function_call._1, ptr->function_call._2));
     }
     case FFISafeExpr::Tag::VariableRef:
     {
-        return make_unique<VariableRef>(Ptr->variable_ref._0);
+        return make_unique<VariableRef>(ptr->variable_ref._0);
     }
     }
 }
 
-vector<unique_ptr<Expr>> ReGenerateAST(FFISafeExprVec Tokens)
+vector<unique_ptr<Expr>> reGenerateAST(FFISafeExprVec tokens)
 {
-    vector<unique_ptr<Expr>> Tree;
-    const FFISafeExpr *Next;
-    for (int i = 0; i < Tokens.len; i++)
+    vector<unique_ptr<Expr>> tree;
+    const FFISafeExpr *next;
+    for (int i = 0; i < tokens.len; i++)
     {
-        Next = Tokens.ptr + i;
-        Tree.push_back(TranslateExpression(Next));
+        next = tokens.ptr + i;
+        tree.push_back(translateExpression(next));
     }
-    return Tree;
+    return tree;
 }
 
-void PrintAST(vector<unique_ptr<Expr>> &Tree)
+void printAST(vector<unique_ptr<Expr>> &tree)
 {
-    for (auto &branch : Tree)
+    for (auto &branch : tree)
     {
-        branch->Print("");
+        branch->print("");
     }
 }

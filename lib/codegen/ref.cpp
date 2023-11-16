@@ -1,27 +1,30 @@
 #include "ref.h"
 
-const string &VariableRef::GetName()
+VariableRef::VariableRef(string name)
+    : name(name){};
+
+const string &VariableRef::getName()
 {
-    return Name;
+    return name;
 }
 
-void VariableRef::SetName(string VarName)
+void VariableRef::setName(string varName)
 {
-    Name = VarName;
+    name = varName;
 }
 
-void VariableRef::Print(string Prefix)
+void VariableRef::print(string prefix)
 {
-    dbgs() << Prefix << "var " << Name << "\n";
+    dbgs() << prefix << "var " << name << "\n";
 }
 
-Value *VariableRef::Gen()
+Value *VariableRef::gen()
 {
-    return GetGenerator()->GenVariableRef(this);
+    return getGenerator()->genVariableRef(this);
 }
 
 // TODO
-Type *VariableRef::GetType()
+Type *VariableRef::getType()
 {
     return 
 }

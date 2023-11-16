@@ -1,18 +1,18 @@
 #include "errors.h"
 
-Location::Location(unsigned int Line, unsigned int Column, string Filename)
-    : Line(Line), Column(Column), Filename(Filename){};
+Location::Location(unsigned int line, unsigned int column, string filename)
+    : line(line), column(column), filename(filename){};
 
-string Location::GetMessage()
+string Location::getMessage()
 {
-    return "@" + Filename + " - " + to_string(Line) + ":" + to_string(Column) + "\n";
+    return "@" + filename + " - " + to_string(line) + ":" + to_string(column) + "\n";
 }
 
-CodegenError::CodegenError(string Message, ErrorLocation Location)
-    : Message(Message), Location(Location){};
+CodegenError::CodegenError(string message, Location location)
+    : message(message), location(location){};
 
-void CodegenError::Print()
+void CodegenError::print()
 {
     llvm::errs() << "[[ error during code generation ]]\n"
-                 << Location.GetMessage() << Message;
+                 << location.getMessage() << message;
 }

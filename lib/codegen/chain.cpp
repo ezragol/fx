@@ -1,5 +1,8 @@
 #include "chain.h"
 
+ChainExpression::ChainExpression(vector<unique_ptr<WhenExpression>> expressions, unique_ptr<Expr> last)
+    : expressions(expressions), last(move(last)){};
+
 const vector<unique_ptr<WhenExpression>> &ChainExpression::getExpressions()
 {
     return expressions;
