@@ -1,4 +1,4 @@
-#include "compiler.h"
+#include "lib/compiler.h"
 
 int main(int argc, char *argv[])
 {

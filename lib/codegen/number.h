@@ -1,3 +1,6 @@
+#ifndef __NUMBER_LITERAL_H
+#define __NUMBER_LITERAL_H
+
 #include "codegen.h"
 
 namespace ast
@@ -19,6 +22,8 @@ namespace ast
 
         void Print(string Prefix) override;
         Value *Gen() override;
-        Type *GetReturnType() override;
+        Type *GetType() override;
     };
 }
+
+#endif

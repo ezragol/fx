@@ -1,0 +1,22 @@
+add_library(codegen)
+
+target_sources(codegen
+  PUBLIC
+    codegen.cpp
+    codegen.h
+    number.cpp
+    number.h
+    string.cpp
+    string.h
+    fndef.cpp
+    fndef.h
+    chain.cpp
+    chain.h
+    binop.cpp
+    binop.h
+    when.cpp
+    when.h
+    fncall.cpp
+    fncall.h
+    ref.cpp
+    ref.h)

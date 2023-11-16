@@ -31,11 +31,9 @@ include_directories(${LLVM_INCLUDE_DIRS})
 separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
 add_definitions(${LLVM_DEFINITIONS_LIST})
 
-add_executable(fx
-        cpp/main.cpp
-        cpp/compiler.cpp
-        cpp/interface.cpp
-        cpp/codegen.cpp)
+add_executable(fx main.cpp)
+
+add_subdirectory(lib)
 
 add_custom_command(
         OUTPUT ${EXEC}__.o
@@ -50,7 +48,7 @@ add_executable(${EXEC}
         out.c
         ${EXEC}__.o)
 
-target_link_libraries(fx PUBLIC LLVM-${LLVM_VERSION_MAJOR} ${LIB_FX_PATH})
+target_link_libraries(fx PUBLIC lib LLVM-${LLVM_VERSION_MAJOR} ${LIB_FX_PATH})
 
 target_include_directories(fx PUBLIC
         "${PROJECT_BINARY_DIR}"

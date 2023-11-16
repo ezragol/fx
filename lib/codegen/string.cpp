@@ -1,4 +1,4 @@
-#include "stringliteral.h"
+#include "string.h"
 
 const string &ast::StringLiteral::GetStringVal()
 {
@@ -22,7 +22,7 @@ Value *ast::StringLiteral::Gen()
 
 // todo??
 
-Type *ast::StringLiteral::GetReturnType()
+Type *ast::StringLiteral::GetType()
 {
     return Type::Get
 }

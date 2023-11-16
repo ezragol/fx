@@ -1,4 +1,4 @@
-#include "numberliteral.h"
+#include "number.h"
 
 const bool &NumberLiteral::IsFloating()
 {
@@ -40,7 +40,7 @@ Value *NumberLiteral::Gen()
     return GetGenerator()->GenNumberLiteral(this);
 }
 
-Type *NumberLiteral::GetReturnType()
+Type *NumberLiteral::GetType()
 {
     LLVMContext &Context = *(GetGenerator()->GetContext());
     if (IsFloating)
