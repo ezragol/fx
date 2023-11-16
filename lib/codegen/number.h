@@ -1,7 +1,7 @@
 #ifndef __NUMBER_LITERAL_H
 #define __NUMBER_LITERAL_H
 
-#include "ast.h"
+#include "codegen.h"
 
 namespace ast
 {

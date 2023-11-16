@@ -1,7 +1,7 @@
 #ifndef __BINARY_OPERATION_H
 #define __BINARY_OPERATION_H
 
-#include "ast.h"
+#include "codegen.h"
 
 namespace ast
 {

@@ -1,10 +1,12 @@
 #ifndef __CHAIN_EXPRESSION_H
 #define __CHAIN_EXPRESSION_H
 
-#include "ast.h"
+#include "codegen.h"
 
 namespace ast
 {
+    class WhenExpression;
+
     class ChainExpression : public Expr
     {
         vector<unique_ptr<WhenExpression>> expressions;

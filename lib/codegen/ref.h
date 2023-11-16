@@ -1,7 +1,7 @@
 #ifndef __VARIABLE_REF_H
 #define __VARIABLE_REF_H
 
-#include "ast.h"
+#include "codegen.h"
 
 namespace ast
 {

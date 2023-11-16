@@ -1,6 +1,6 @@
 #include "string.h"
 
-StringLiteral::StringLiteral(string stringVal)
+ast::StringLiteral::StringLiteral(string stringVal)
     : stringVal(stringVal){};
 
 const string &ast::StringLiteral::getStringVal()
@@ -26,5 +26,5 @@ Value *ast::StringLiteral::gen()
 // TOOD
 Type *ast::StringLiteral::getType()
 {
-    return Type::get
+    // return Type::get
 }

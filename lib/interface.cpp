@@ -78,6 +78,8 @@ unique_ptr<Expr> translateExpression(const FFISafeExpr *ptr)
     {
         return make_unique<VariableRef>(ptr->variable_ref._0);
     }
+    default:
+        return nullptr;
     }
 }
 

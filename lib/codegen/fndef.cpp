@@ -1,7 +1,7 @@
 #include "fndef.h"
 
-FunctionDefinition::FunctionDefinition(string name, vector<string> args, unique_ptr<Expr> fnBody)
-    : name(name), args(args), body(move(body)){};
+FunctionDefinition::FunctionDefinition(string name, vector<string> args, unique_ptr<Expr> body)
+    : name(name), args(args), body(std::move(body)){};
 
 const string &FunctionDefinition::getName()
 {
@@ -30,7 +30,7 @@ void FunctionDefinition::setArgs(vector<string> fnArgs)
 
 void FunctionDefinition::setBody(unique_ptr<Expr> fnBody)
 {
-    body = move(fnBody);
+    body = std::move(fnBody);
 }
 
 void FunctionDefinition::print(string prefix)

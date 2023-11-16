@@ -46,7 +46,7 @@ Value *NumberLiteral::gen()
 Type *NumberLiteral::getType()
 {
     LLVMContext &context = *(getGenerator()->getContext());
-    if (isFloating)
+    if (floating)
         return Type::getDoubleTy(context);
     return Type::getInt64Ty(context);
 }

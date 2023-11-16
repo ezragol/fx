@@ -2,5 +2,5 @@
 
 int main(int argc, char *argv[])
 {
-    return Compile(argc, argv);
+    return compile(argc, argv);
 }

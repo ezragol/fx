@@ -26,5 +26,5 @@ Value *VariableRef::gen()
 // TODO
 Type *VariableRef::getType()
 {
-    return 
+    // return 
 }

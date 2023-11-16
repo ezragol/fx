@@ -1,7 +1,7 @@
 #ifndef __FUNCTION_DEFINITION_H
 #define __FUNCTION_DEFINITION_H
 
-#include "ast.h"
+#include "codegen.h"
 
 namespace ast
 {

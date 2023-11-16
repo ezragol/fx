@@ -1,7 +1,7 @@
 #include "when.h"
 
 WhenExpression::WhenExpression(unique_ptr<Expr> predicate, unique_ptr<Expr> result)
-    : predicate(move(predicate)), result(move(result)){};
+    : predicate(std::move(predicate)), result(std::move(result)){};
 
 const unique_ptr<Expr> &WhenExpression::getPredicate()
 {
@@ -15,12 +15,12 @@ const unique_ptr<Expr> &WhenExpression::getResult()
 
 void WhenExpression::setPredicate(unique_ptr<Expr> boolPredicate)
 {
-    predicate = move(boolPredicate);
+    predicate = std::move(boolPredicate);
 }
 
 void WhenExpression::setResult(unique_ptr<Expr> resultExpr)
 {
-    result = move(resultExpr);
+    result = std::move(resultExpr);
 }
 
 void WhenExpression::print(string prefix)

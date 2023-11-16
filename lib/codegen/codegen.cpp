@@ -7,7 +7,7 @@ const unique_ptr<CodeGen> &Expr::getGenerator()
 
 void Expr::setGenerator(unique_ptr<CodeGen> codegen)
 {
-    generator = move(codegen);
+    generator = std::move(codegen);
 }
 
 /////////

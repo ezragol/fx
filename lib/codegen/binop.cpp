@@ -1,7 +1,7 @@
 #include "binop.h"
 
 BinaryOperation::BinaryOperation(uint8_t op, unique_ptr<Expr> left, unique_ptr<Expr> right)
-    : op(op), left(move(left)), right(move(right)){};
+    : op(op), left(std::move(left)), right(std::move(right)){};
 
 const uint8_t &BinaryOperation::getOp()
 {
@@ -25,12 +25,12 @@ void BinaryOperation::setOp(uint8_t opInt)
 
 void BinaryOperation::setLeft(unique_ptr<Expr> leftExpr)
 {
-    left = move(leftExpr);
+    left = std::move(leftExpr);
 }
 
 void BinaryOperation::setRight(unique_ptr<Expr> rightExpr)
 {
-    right = move(rightExpr);
+    right = std::move(rightExpr);
 }
 
 void BinaryOperation::print(string prefix)

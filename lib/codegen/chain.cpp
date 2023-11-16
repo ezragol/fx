@@ -1,7 +1,7 @@
 #include "chain.h"
 
 ChainExpression::ChainExpression(vector<unique_ptr<WhenExpression>> expressions, unique_ptr<Expr> last)
-    : expressions(expressions), last(move(last)){};
+    : expressions(std::move(expressions)), last(std::move(last)){};
 
 const vector<unique_ptr<WhenExpression>> &ChainExpression::getExpressions()
 {
@@ -15,12 +15,12 @@ const unique_ptr<Expr> &ChainExpression::getLast()
 
 void ChainExpression::setExpressions(vector<unique_ptr<WhenExpression>> whenExpressions)
 {
-    expressions = whenExpressions;
+    expressions = std::move(whenExpressions);
 }
 
 void ChainExpression::setLast(unique_ptr<Expr> lastExpr)
 {
-    last = move(lastExpr);
+    last = std::move(lastExpr);
 }
 
 void ChainExpression::print(string prefix)

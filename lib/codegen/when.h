@@ -1,7 +1,7 @@
 #ifndef __WHEN_EXPRESSION_H
 #define __WHEN_EXPRESSION_H
 
-#include "ast.h"
+#include "codegen.h"
 
 namespace ast
 {

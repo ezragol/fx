@@ -1,7 +1,7 @@
 #include "fncall.h"
 
 FunctionCall::FunctionCall(string name, vector<unique_ptr<Expr>> args)
-    : name(name), args(args){};
+    : name(name), args(std::move(args)){};
 
 const string &ast::FunctionCall::getName()
 {
@@ -20,7 +20,7 @@ void FunctionCall::setName(string fnName)
 
 void FunctionCall::setArgs(vector<unique_ptr<Expr>> fnArgs)
 {
-    args = fnArgs;
+    args = std::move(fnArgs);
 }
 
 void FunctionCall::print(string prefix)
@@ -41,5 +41,5 @@ Value *FunctionCall::gen()
 // fix
 Type *FunctionCall::getType()
 {
-    return getGenerator();
+    // return getGenerator();
 }
