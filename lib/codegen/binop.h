@@ -24,7 +24,6 @@ namespace ast
 
         void print(string prefix) override;
         Value *gen() override;
-        Type *getType() override;
     };
 }
 

@@ -31,6 +31,15 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 
+#include "number.h"
+#include "string.h"
+#include "fndef.h"
+#include "chain.h"
+#include "binop.h"
+#include "when.h"
+#include "fncall.h"
+#include "ref.h"
+
 using namespace llvm;
 using namespace std;
 
@@ -40,16 +49,9 @@ namespace ast
 {
     class Expr
     {
-        unique_ptr<CodeGen> generator;
-
     public:
-        const unique_ptr<CodeGen> &getGenerator();
-
-        void setGenerator(unique_ptr<CodeGen> codegen);
-
         virtual void print(string prefix);
         virtual Value *gen();
-        virtual Type *getType();
 
         virtual ~Expr() = default;
         Expr &operator=(const Expr &) = delete;
@@ -97,14 +99,5 @@ public:
 
     virtual ~CodeGen() = default;
 };
-
-#include "number.h"
-#include "string.h"
-#include "fndef.h"
-#include "chain.h"
-#include "binop.h"
-#include "when.h"
-#include "fncall.h"
-#include "ref.h"
 
 #endif

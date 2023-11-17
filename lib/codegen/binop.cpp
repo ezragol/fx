@@ -40,14 +40,3 @@ void BinaryOperation::print(string prefix)
     right->print(prefix + "  ");
     dbgs() << prefix << "}\n";
 }
-
-Value *BinaryOperation::gen()
-{
-    return getGenerator()->genBinaryOperation(this);
-}
-
-// TODO
-Type *BinaryOperation::getType()
-{
-    
-}

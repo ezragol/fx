@@ -1,7 +1,7 @@
 #ifndef __CHAIN_EXPRESSION_H
 #define __CHAIN_EXPRESSION_H
 
-#include "codegen.h"
+#include <vector>
 
 namespace ast
 {
@@ -22,8 +22,6 @@ namespace ast
         void setLast(unique_ptr<Expr> lastExpr);
 
         void print(string prefix) override;
-        Value *gen() override;
-        Type *getType() override;
     };
 }
 
