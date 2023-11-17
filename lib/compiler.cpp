@@ -28,7 +28,7 @@ int compile(int argc, char *argv[])
 
     for (auto &branch : tree)
     {
-        branch->gen();
+        generator.genericGen(branch);
     }
 
     if (generator.runPass(tokens.out))

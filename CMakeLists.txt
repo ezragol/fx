@@ -21,7 +21,6 @@ endif()
 set(FULLROOT ${CMAKE_SOURCE_DIR}/${SRCROOT})
 
 find_package(LLVM REQUIRED CONFIG)
-set(LIB_FX_PATH "${PROJECT_SOURCE_DIR}/target/debug/librfx.a")
 set(LLVM_LINK_COMPONENTS ${LLVM_TARGETS_TO_BUILD})
 
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
@@ -32,9 +31,7 @@ separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
 add_definitions(${LLVM_DEFINITIONS_LIST})
 
 add_executable(fx main.cpp)
-
 add_subdirectory(lib)
-
 add_custom_command(
         OUTPUT ${EXEC}__.o
         DEPENDS ${FULLROOT}.txt

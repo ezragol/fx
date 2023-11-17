@@ -42,31 +42,6 @@
 
 using namespace llvm;
 using namespace std;
-
-class CodeGen;
-
-namespace ast
-{
-    class Expr
-    {
-    public:
-        virtual void print(string prefix);
-        virtual Value *gen();
-
-        virtual ~Expr() = default;
-        Expr &operator=(const Expr &) = delete;
-    };
-
-    class FunctionDefinition;
-    class NumberLiteral;
-    class StringLiteral;
-    class ChainExpression;
-    class BinaryOperation;
-    class WhenExpression;
-    class FunctionCall;
-    class VariableRef;
-}
-
 using namespace ast;
 
 class CodeGen
@@ -80,14 +55,6 @@ class CodeGen
     TargetMachine *targetMachine;
     AllocaInst *createEntryBlockAlloca(Function *function, StringRef varName);
     Value *getPredFCmp(const unique_ptr<WhenExpression> &when);
-
-public:
-    CodeGen(string targetTriple, TargetMachine *targetMachine);
-    const unique_ptr<LLVMContext> &getContext();
-
-    int runPass(string outFile);
-    Function *loadFunction(string name);
-
     Function *genFunctionDefinition(FunctionDefinition *func);
     Value *genNumberLiteral(NumberLiteral *num);
     Value *genStringLiteral(ast::StringLiteral *string);
@@ -96,6 +63,15 @@ public:
     Value *genWhenExpression(WhenExpression *when);
     Value *genFunctionCall(FunctionCall *call);
     Value *genVariableRef(VariableRef *ref);
+
+public:
+    CodeGen(string targetTriple, TargetMachine *targetMachine);
+    const unique_ptr<LLVMContext> &getContext();
+
+    int runPass(string outFile);
+    Function *loadFunction(string name);
+
+    Value *genericGen(const unique_ptr<Expr> &expr);
 
     virtual ~CodeGen() = default;
 };

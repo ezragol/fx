@@ -1,7 +1,7 @@
 #include "ref.h"
 
 VariableRef::VariableRef(string name)
-    : name(name){};
+    : Expr(Ref), name(name){};
 
 const string &VariableRef::getName()
 {
@@ -11,20 +11,4 @@ const string &VariableRef::getName()
 void VariableRef::setName(string varName)
 {
     name = varName;
-}
-
-void VariableRef::print(string prefix)
-{
-    dbgs() << prefix << "var " << name << "\n";
-}
-
-Value *VariableRef::gen()
-{
-    return getGenerator()->genVariableRef(this);
-}
-
-// TODO
-Type *VariableRef::getType()
-{
-    // return 
 }

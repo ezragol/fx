@@ -16,6 +16,5 @@ unique_ptr<WhenExpression> translateWhen(const FFISafeExpr *ptr);
 unique_ptr<Expr> translateExpression(const FFISafeExpr *ptr);
 
 vector<unique_ptr<Expr>> reGenerateAST(FFISafeExprVec tokens);
-void printAST(vector<unique_ptr<Expr>> &tree);
 
 #endif

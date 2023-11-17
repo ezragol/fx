@@ -2,8 +2,8 @@ add_library(codegen)
 
 target_sources(codegen
   PUBLIC
-    codegen.cpp
-    codegen.h
+    ast.h
+    ast.cpp
     number.cpp
     number.h
     string.cpp
@@ -19,4 +19,6 @@ target_sources(codegen
     fncall.cpp
     fncall.h
     ref.cpp
-    ref.h)
+    ref.h
+    codegen.cpp
+    codegen.h)

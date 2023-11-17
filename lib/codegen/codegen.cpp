@@ -1,17 +1,5 @@
 #include "codegen.h"
 
-const unique_ptr<CodeGen> &Expr::getGenerator()
-{
-    return generator;
-}
-
-void Expr::setGenerator(unique_ptr<CodeGen> codegen)
-{
-    generator = std::move(codegen);
-}
-
-/////////
-
 CodeGen::CodeGen(string targetTriple, TargetMachine *targetMachine)
     : targetTriple(targetTriple), targetMachine(targetMachine)
 {
@@ -81,6 +69,31 @@ Function *CodeGen::loadFunction(string name)
     return nullptr;
 }
 
+Value *CodeGen::genericGen(const unique_ptr<Expr> &expr)
+{
+    switch (expr->getStructure())
+    {
+        case BinaryOp:
+            return genBinaryOperation((BinaryOperation *) expr.get());
+        case ChainExpr:
+            return genChainExpression((ChainExpression *) expr.get());
+        case FnCall:
+            return genFunctionCall((FunctionCall *) expr.get());
+        case FnDef:
+            return genFunctionDefinition((FunctionDefinition *) expr.get());
+        case Num:
+            return genNumberLiteral((NumberLiteral *) expr.get());
+        case Ref:
+            return genVariableRef((VariableRef *) expr.get());
+        case Str:
+            return genStringLiteral((ast::StringLiteral *) expr.get());
+        case WhenExpr:
+            return genWhenExpression((WhenExpression *) expr.get());
+        default:
+            return nullptr;
+    }
+}
+
 Value *CodeGen::genNumberLiteral(NumberLiteral *num)
 {
     if (num->isFloating())
@@ -116,7 +129,7 @@ Function *CodeGen::genFunctionDefinition(FunctionDefinition *def)
         namedValues[name] = alloca;
     }
 
-    if (Value *returned = def->getBody()->gen())
+    if (Value *returned = genericGen(def->getBody()))
     {
         builder->CreateRet(returned);
         verifyFunction(*fn);
@@ -136,7 +149,7 @@ Value *CodeGen::genStringLiteral(ast::StringLiteral *string)
 
 Value *CodeGen::getPredFCmp(const unique_ptr<WhenExpression> &when)
 {
-    Value *predicate = when->getPredicate()->gen();
+    Value *predicate = genericGen(when->getPredicate());
     if (!predicate)
     {
         errs() << "missing predicate!\n";
@@ -162,7 +175,6 @@ Value *CodeGen::genChainExpression(ChainExpression *chain)
     BasicBlock *current = BasicBlock::Create(*context, "then", parent);
     BasicBlock *split = BasicBlock::Create(*context, "else", parent);
     BasicBlock *merge = BasicBlock::Create(*context, "ifcont");
-    Type *returnType = nullptr;
 
     builder->CreateCondBr(predicate, current, split);
 
@@ -172,12 +184,7 @@ Value *CodeGen::genChainExpression(ChainExpression *chain)
         auto &when = exprs[j];
         auto &last = exprs[j - 1];
         builder->SetInsertPoint(current);
-        Value *result = last->getResult()->gen();
-        if (!returnType)
-            returnType = result->getType();
-        else if (returnType != result->getType())
-            errs() << "mismatched types!\n";
-        return nullptr;
+        Value *result = genericGen(last->getResult());
 
         if (!result)
         {
@@ -207,7 +214,7 @@ Value *CodeGen::genChainExpression(ChainExpression *chain)
         }
         else
         {
-            Value *final = chain->getLast()->gen();
+            Value *final = genericGen(chain->getLast());
             if (!final)
             {
                 errs() << "missing result!\n";
@@ -221,7 +228,7 @@ Value *CodeGen::genChainExpression(ChainExpression *chain)
 
     parent->insert(parent->end(), merge);
     builder->SetInsertPoint(merge);
-    PHINode *phi = builder->CreatePHI(returnType, 2, "iftmp");
+    PHINode *phi = builder->CreatePHI(Type::getDoubleTy(*context), 2, "iftmp");
 
     int i = 0;
     for (auto block : blocks)
@@ -235,8 +242,8 @@ Value *CodeGen::genChainExpression(ChainExpression *chain)
 // todo
 Value *CodeGen::genBinaryOperation(BinaryOperation *bin)
 {
-    Value *left = bin->getLeft()->gen();
-    Value *right = bin->getRight()->gen();
+    Value *left = genericGen(bin->getLeft());
+    Value *right = genericGen(bin->getRight());
 
     if (!left || !right)
     {
@@ -311,7 +318,7 @@ Value *CodeGen::genFunctionCall(FunctionCall *call)
     vector<Value *> argv;
     for (int i = 0; i < callArgCount; i++)
     {
-        argv.push_back(call->getArgs()[i]->gen());
+        argv.push_back(genericGen(call->getArgs()[i]));
         if (!argv.back())
         {
             errs() << "missing args!\n";

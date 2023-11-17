@@ -1,7 +1,7 @@
 #ifndef __WHEN_EXPRESSION_H
 #define __WHEN_EXPRESSION_H
 
-#include "codegen.h"
+#include "ast.h"
 
 namespace ast
 {
@@ -18,11 +18,9 @@ namespace ast
 
         void setPredicate(unique_ptr<Expr> boolPredicate);
         void setResult(unique_ptr<Expr> resultExpr);
-
-        void print(string prefix) override;
-        Value *gen() override;
-        Type *getType() override;
     };
 }
+
+using namespace ast;
 
 #endif

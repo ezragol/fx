@@ -1,7 +1,7 @@
 #ifndef __VARIABLE_REF_H
 #define __VARIABLE_REF_H
 
-#include "codegen.h"
+#include "ast.h"
 
 namespace ast
 {
@@ -15,10 +15,6 @@ namespace ast
         const string &getName();
 
         void setName(string varName);
-
-        void print(string prefix) override;
-        Value *gen() override;
-        Type *getType() override;
     };
 }
 

@@ -1,12 +1,10 @@
 #ifndef __CHAIN_EXPRESSION_H
 #define __CHAIN_EXPRESSION_H
 
-#include <vector>
+#include "when.h"
 
 namespace ast
 {
-    class WhenExpression;
-
     class ChainExpression : public Expr
     {
         vector<unique_ptr<WhenExpression>> expressions;
@@ -20,8 +18,6 @@ namespace ast
 
         void setExpressions(vector<unique_ptr<WhenExpression>> whenExpressions);
         void setLast(unique_ptr<Expr> lastExpr);
-
-        void print(string prefix) override;
     };
 }
 

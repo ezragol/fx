@@ -94,11 +94,3 @@ vector<unique_ptr<Expr>> reGenerateAST(FFISafeExprVec tokens)
     }
     return tree;
 }
-
-void printAST(vector<unique_ptr<Expr>> &tree)
-{
-    for (auto &branch : tree)
-    {
-        branch->print("");
-    }
-}

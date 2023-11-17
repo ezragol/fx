@@ -1,7 +1,7 @@
 #ifndef __NUMBER_LITERAL_H
 #define __NUMBER_LITERAL_H
 
-#include "codegen.h"
+#include "ast.h"
 
 namespace ast
 {
@@ -21,10 +21,6 @@ namespace ast
         void setFloating(bool state);
         void setIntVal(int val);
         void setFloatVal(double val);
-
-        void print(string prefix) override;
-        Value *gen() override;
-        Type *getType() override;
     };
 }
 

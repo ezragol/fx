@@ -1,7 +1,7 @@
 #ifndef __STRING_LITERAL_H
 #define __STRING_LITERAL_H
 
-#include "codegen.h"
+#include "ast.h"
 
 namespace ast
 {
@@ -15,10 +15,6 @@ namespace ast
         const string &getStringVal();
 
         void setStringVal(string val);
-
-        void print(string prefix) override;
-        Value *gen() override;
-        Type *getType() override;
     };
 
 }

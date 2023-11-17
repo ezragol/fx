@@ -1,7 +1,7 @@
 #ifndef __BINARY_OPERATION_H
 #define __BINARY_OPERATION_H
 
-#include "codegen.h"
+#include "ast.h"
 
 namespace ast
 {
@@ -21,9 +21,6 @@ namespace ast
         void setOp(uint8_t opInt);
         void setLeft(unique_ptr<Expr> leftExpr);
         void setRight(unique_ptr<Expr> rightExpr);
-
-        void print(string prefix) override;
-        Value *gen() override;
     };
 }
 

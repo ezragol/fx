@@ -1,7 +1,7 @@
 #ifndef __FUNCTION_CALL_H
 #define __FUNCTION_CALL_H
 
-#include "codegen.h"
+#include "ast.h"
 
 namespace ast
 {
@@ -18,10 +18,6 @@ namespace ast
 
         void setName(string fnName);
         void setArgs(vector<unique_ptr<Expr>> fnArgs);
-
-        void print(string prefix) override;
-        Value *gen() override;
-        Type *getType() override;
     };
 }
 
