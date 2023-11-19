@@ -16,8 +16,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Install Dependencies
-      run: sudo apt install -y valgrind llvm
+    - name: Install LLVM
+      run: bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
+    - name: Install Valgrind
+      run: sudo apt install -y valgrind
     - name: Configure
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DLLVM_TARGETS_TO_BUILD=x86
     - name: Build
