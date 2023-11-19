@@ -34,8 +34,8 @@ unsafe fn box_drop<T>(ffi_val: *mut T) {
     drop(Box::from_raw(ffi_val));
 }
 
-unsafe fn drop_expr(expr: &FFISafeExpr) {
-    match *expr {
+unsafe fn drop_expr(expr: &LocatedFFISafeExpr) {
+    match *expr.get_expr() {
         FFISafeExpr::StringLiteral(s) => {
             box_drop(s);
         }
@@ -69,10 +69,11 @@ unsafe fn drop_expr(expr: &FFISafeExpr) {
         }
         _ => {}
     }
+    box_drop(expr.get_filename());
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn drop_all(start: *mut FFISafeExpr, len: usize) {
+pub unsafe extern "C" fn drop_all(start: *mut LocatedFFISafeExpr, len: usize) {
     let arr = Box::from_raw(std::slice::from_raw_parts_mut(start, len));
     for expr in arr.iter() {
         drop_expr(expr);

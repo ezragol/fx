@@ -21,3 +21,4 @@
 - add arrays
 - for loops
 - fixing extern system
+- link compiler error locations to ir codegen

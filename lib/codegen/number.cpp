@@ -1,34 +1,14 @@
 #include "number.h"
 
-NumberLiteral::NumberLiteral(bool floating, int intVal, double floatVal)
-    : Expr(Num), floating(floating), intVal(intVal), floatVal(floatVal){};
+NumberLiteral::NumberLiteral(Location location, NumberType value)
+    : Expr(Num, location), value(value) {};
 
-const bool &NumberLiteral::isFloating()
+const NumberType &NumberLiteral::getValue()
 {
-    return floating;
+    return value;
 }
 
-const int &NumberLiteral::getIntVal()
+void NumberLiteral::setValue(NumberType value)
 {
-    return intVal;
-}
-
-const double &NumberLiteral::getFloatVal()
-{
-    return floatVal;
-}
-
-void NumberLiteral::setFloating(bool state)
-{
-    floating = state;
-}
-
-void NumberLiteral::setIntVal(int val)
-{
-    intVal = val;
-}
-
-void NumberLiteral::setFloatVal(double val)
-{
-    floatVal = val;
+    value = value;
 }

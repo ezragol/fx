@@ -4,20 +4,24 @@
 
 using namespace std;
 
-class Location {
+class Location
+{
 private:
     unsigned int line;
     unsigned int column;
     string filename;
+
 public:
     Location(unsigned int line, unsigned int column, string filename);
     string getMessage();
 };
 
-class CodegenError {
+class CodegenError
+{
 private:
     string message;
     Location location;
+
 public:
     CodegenError(string message, Location location);
     void print();

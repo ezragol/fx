@@ -1,7 +1,7 @@
 #include "fncall.h"
 
-FunctionCall::FunctionCall(string name, vector<unique_ptr<Expr>> args)
-    : Expr(FnCall), name(name), args(std::move(args)){};
+FunctionCall::FunctionCall(Location location, string name, vector<unique_ptr<Expr>> args)
+    : Expr(FnCall, location), name(name), args(std::move(args)){};
 
 const string &ast::FunctionCall::getName()
 {

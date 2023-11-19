@@ -10,7 +10,7 @@ namespace ast
         string name;
 
     public:
-        VariableRef(string name);
+        VariableRef(Location location, string name);
 
         const string &getName();
 

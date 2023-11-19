@@ -1,7 +1,7 @@
 #include "ref.h"
 
-VariableRef::VariableRef(string name)
-    : Expr(Ref), name(name){};
+VariableRef::VariableRef(Location location, string name)
+    : Expr(Ref, location), name(name){};
 
 const string &VariableRef::getName()
 {

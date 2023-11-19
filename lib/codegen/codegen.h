@@ -44,6 +44,8 @@ using namespace llvm;
 using namespace std;
 using namespace ast;
 
+#define derived(U) (const unique_ptr<U> &)
+
 class CodeGen
 {
     unique_ptr<LLVMContext> context;
@@ -55,14 +57,14 @@ class CodeGen
     TargetMachine *targetMachine;
     AllocaInst *createEntryBlockAlloca(Function *function, StringRef varName);
     Value *getPredFCmp(const unique_ptr<WhenExpression> &when);
-    Function *genFunctionDefinition(FunctionDefinition *func);
-    Value *genNumberLiteral(NumberLiteral *num);
-    Value *genStringLiteral(ast::StringLiteral *string);
-    Value *genChainExpression(ChainExpression *chain);
-    Value *genBinaryOperation(BinaryOperation *bin);
-    Value *genWhenExpression(WhenExpression *when);
-    Value *genFunctionCall(FunctionCall *call);
-    Value *genVariableRef(VariableRef *ref);
+    
+    Function *genFunctionDefinition(const unique_ptr<FunctionDefinition> &func);
+    Value *genNumberLiteral(const unique_ptr<NumberLiteral> &num);
+    Value *genStringLiteral(const unique_ptr<ast::StringLiteral> &string);
+    Value *genChainExpression(const unique_ptr<ChainExpression> &chain);
+    Value *genBinaryOperation(const unique_ptr<BinaryOperation> &bin);
+    Value *genFunctionCall(const unique_ptr<FunctionCall> &call);
+    Value *genVariableRef(const unique_ptr<VariableRef> &ref);
 
 public:
     CodeGen(string targetTriple, TargetMachine *targetMachine);

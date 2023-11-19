@@ -11,7 +11,7 @@ namespace ast
         vector<unique_ptr<Expr>> args;
 
     public:
-        FunctionCall(string name, vector<unique_ptr<Expr>> args);
+        FunctionCall(Location location, string name, vector<unique_ptr<Expr>> args);
 
         const string &getName();
         const vector<unique_ptr<Expr>> &getArgs();

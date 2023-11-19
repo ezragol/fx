@@ -176,22 +176,22 @@ impl Parser {
     }
 
     // no coverage
-    fn parse_expr_or_err(&mut self) -> Result<Expr> {
+    fn parse_expr_or_err(&mut self) -> Result<LocatedExpr> {
         match self.parse_expression() {
             Some(expr) => Ok(expr),
             _ => DeclarationError::while_parsing(self.current().loc()),
         }
     }
 
-    fn parse_definition(&mut self) -> Result<Expr> {
+    fn parse_definition(&mut self) -> Result<LocatedExpr> {
         let identifier = self.expect_identifier()?;
         let next = self.next_token()?;
         match next.tok() {
-            Token::Grouping(args) => Ok(Expr::FunctionDefinition(
+            Token::Grouping(args) => Ok(LocatedExpr::new(Expr::FunctionDefinition(
                 identifier,
                 Parser::parse_def_args(args)?,
                 self.parse_expr_or_err()?.into(),
-            )),
+            ), next.loc())),
             _ => DeclarationError::while_parsing(next.loc()),
         }
     }
@@ -308,7 +308,7 @@ impl Parser {
         return tokens;
     }
 
-    fn parse_grouping(tokens: Vec<LocatedToken>, with_brackets: bool) -> Option<Expr> {
+    fn parse_grouping(tokens: Vec<LocatedToken>, with_brackets: bool) -> Option<LocatedExpr> {
         let change = if with_brackets { 1 } else { 0 };
 
         if tokens.len() > 2 * change {
@@ -319,55 +319,59 @@ impl Parser {
         }
     }
 
-    fn parse_non_symbol(&mut self, symbol: LocatedToken) -> Option<Expr> {
+    fn parse_non_symbol(&mut self, symbol: LocatedToken) -> Option<LocatedExpr> {
         match symbol.tok() {
-            Token::Identifier(ident) => Some(Expr::VariableRef(ident)),
-            Token::Number(int, float) => Some(Expr::NumberLiteral(
+            Token::Identifier(ident) => Some(LocatedExpr::new(Expr::VariableRef(ident), symbol.loc())),
+            Token::Number(int, float) => Some(LocatedExpr::new(Expr::NumberLiteral(
                 int.is_none(),
                 int.unwrap_or(0),
                 float.unwrap_or(0.0),
-            )),
-            Token::String(s) => Some(Expr::StringLiteral(s)),
+            ), symbol.loc())),
+            Token::String(s) => Some(LocatedExpr::new(Expr::StringLiteral(s), symbol.loc())),
             Token::Grouping(tokens) => Parser::parse_grouping(tokens, true),
             // fix
             Token::FunctionCall(name, tokens) => {
-                Some(if let Ok(args) = Parser::parse_chain(tokens, false) {
+                let call = if let Ok(args) = Parser::parse_chain(tokens, false) {
                     Expr::FunctionCall(name, args)
                 } else {
                     Expr::FunctionCall(name, vec![])
-                })
+                };
+                Some(LocatedExpr::new(call, symbol.loc()))
             }
             _ => None,
         }
     }
 
-    fn branch(&mut self, tokens: Vec<LocatedToken>, mut indexes: Vec<(usize, u8)>) -> Option<Expr> {
+    fn branch(&mut self, tokens: Vec<LocatedToken>, mut indexes: Vec<(usize, u8)>) -> Option<LocatedExpr> {
         let mut last_index = 0;
         let mut tree = None;
         indexes.sort_by(|a, b| a.1.cmp(&b.1));
 
         for (index, prec) in indexes {
             if tree.is_none() {
-                tree = Some(Expr::BinaryOperation(
+                let branch = Expr::BinaryOperation(
                     prec,
                     self.parse_non_symbol(tokens[index - 1].clone())?.into(),
                     self.parse_non_symbol(tokens[index + 1].clone())?.into(),
-                ));
+                );
+                tree = Some(LocatedExpr::new(branch, tokens[index].loc()));
                 last_index = index;
             } else {
+                let branch;
                 if last_index < index {
-                    tree = Some(Expr::BinaryOperation(
+                    branch = Expr::BinaryOperation(
                         prec,
                         tree.unwrap().into(),
                         self.parse_non_symbol(tokens[index + 1].clone())?.into(),
-                    ));
+                    );
                 } else {
-                    tree = Some(Expr::BinaryOperation(
+                    branch = Expr::BinaryOperation(
                         prec,
                         self.parse_non_symbol(tokens[index - 1].clone())?.into(),
                         tree.unwrap().into(),
-                    ));
+                    );
                 }
+                tree = Some(LocatedExpr::new(branch, tokens[index].loc()));
                 last_index = index;
             }
         }
@@ -379,7 +383,7 @@ impl Parser {
         Some(tree.unwrap())
     }
 
-    fn parse_expression(&mut self) -> Option<Expr> {
+    fn parse_expression(&mut self) -> Option<LocatedExpr> {
         let tokens = self.read_expr_tokens();
         if tokens.len() == 0 {
             return None;
@@ -387,8 +391,8 @@ impl Parser {
 
         for token in &tokens {
             if token.tok() == Token::Symbol(Symbol::Comma) {
-                let expressions = Parser::parse_chain(tokens, false).unwrap();
-                return Some(Expr::ChainExpression(expressions));
+                let expressions = Parser::parse_chain(tokens.clone(), false).unwrap();
+                return Some(LocatedExpr::new(Expr::ChainExpression(expressions), token.loc()));
             }
         }
 
@@ -428,11 +432,11 @@ impl Parser {
                 .map(|(index, prec)| (index - when_index - 1, prec))
                 .collect();
 
-            return Some(Expr::WhenExpression(
+            return Some(LocatedExpr::new(Expr::WhenExpression(
                 self.branch(tokens[when_index + 1..].to_vec(), right)?
                     .into(),
                 self.branch(tokens[..when_index].to_vec(), left)?.into(),
-            ));
+            ), tokens[when_index].loc()));
         } else {
             self.branch(tokens, op_indexes)
         }
@@ -465,7 +469,7 @@ impl Parser {
         return Ok(arg_tree);
     }
 
-    fn parse_one_of_chain(current_group: Vec<LocatedToken>) -> Result<Expr> {
+    fn parse_one_of_chain(current_group: Vec<LocatedToken>) -> Result<LocatedExpr> {
         if let Some(parsed) = Parser::parse_grouping(current_group.clone(), false) {
             Ok(parsed)
         } else {
@@ -473,7 +477,7 @@ impl Parser {
         }
     }
 
-    fn parse_chain(args: Vec<LocatedToken>, is_arg: bool) -> Result<Vec<Expr>> {
+    fn parse_chain(args: Vec<LocatedToken>, is_arg: bool) -> Result<Vec<LocatedExpr>> {
         let mut arg_tree = vec![];
         let mut p = Parser::from_tree(args);
         let mut current_group = vec![];
@@ -508,9 +512,9 @@ impl Parser {
         }
     }
 
-    pub fn run(&mut self) -> Vec<Expr> {
+    pub fn run(&mut self) -> Vec<LocatedExpr> {
         let mut next: Option<LocatedToken>;
-        let mut tree: Vec<Expr> = vec![];
+        let mut tree: Vec<LocatedExpr> = vec![];
 
         loop {
             let Ok(token) = self.next_token() else {

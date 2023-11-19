@@ -12,7 +12,7 @@ namespace ast
         unique_ptr<Expr> right;
 
     public:
-        BinaryOperation(uint8_t op, unique_ptr<Expr> left, unique_ptr<Expr> right);
+        BinaryOperation(Location location, uint8_t op, unique_ptr<Expr> left, unique_ptr<Expr> right);
 
         const uint8_t &getOp();
         const unique_ptr<Expr> &getLeft();

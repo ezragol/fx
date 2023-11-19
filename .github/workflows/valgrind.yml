@@ -1,0 +1,21 @@
+name: CMake + Valgrind
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Configure
+      run: cmake -B build -G Ninja -DLLVM_TARGETS_TO_BUILD=x86
+    - name: Build
+      run: cmake --build build
+    - name: Run Valgrind
+      run: valgrind --tool=memcheck --leak-check=full --error-exitcode=1 ./build/fx example.txt example__.bc

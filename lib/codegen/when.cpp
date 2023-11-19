@@ -1,7 +1,7 @@
 #include "when.h"
 
-WhenExpression::WhenExpression(unique_ptr<Expr> predicate, unique_ptr<Expr> result)
-    : Expr(WhenExpr), predicate(std::move(predicate)), result(std::move(result)){};
+WhenExpression::WhenExpression(Location location, unique_ptr<Expr> predicate, unique_ptr<Expr> result)
+    : Expr(WhenExpr, location), predicate(std::move(predicate)), result(std::move(result)){};
 
 const unique_ptr<Expr> &WhenExpression::getPredicate()
 {

@@ -8,8 +8,6 @@ target_sources(lib
   PUBLIC
     compiler.cpp
     compiler.h
-    errors.cpp
-    errors.h
     interface.cpp
     interface.h)
 

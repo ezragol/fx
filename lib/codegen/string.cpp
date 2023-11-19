@@ -1,7 +1,7 @@
 #include "string.h"
 
-ast::StringLiteral::StringLiteral(string stringVal)
-    : Expr(Str), stringVal(stringVal){};
+ast::StringLiteral::StringLiteral(Location location, string stringVal)
+    : Expr(Str, location), stringVal(stringVal){};
 
 const string &ast::StringLiteral::getStringVal()
 {

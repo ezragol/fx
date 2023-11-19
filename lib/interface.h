@@ -10,10 +10,12 @@
 
 using namespace ffi;
 
-vector<unique_ptr<Expr>> translateExpressionVec(const FFISafeExpr *start, uint8_t len);
+Location buildFromPtr(const LocatedFFISafeExpr *ptr);
+
+vector<unique_ptr<Expr>> translateExpressionVec(const LocatedFFISafeExpr *start, uint8_t len);
 vector<FFISafeExpr *> translateStringVec(const char *start, uint32_t len);
-unique_ptr<WhenExpression> translateWhen(const FFISafeExpr *ptr);
-unique_ptr<Expr> translateExpression(const FFISafeExpr *ptr);
+unique_ptr<WhenExpression> translateWhen(const LocatedFFISafeExpr *ptr);
+unique_ptr<Expr> translateExpression(const LocatedFFISafeExpr *ptr);
 
 vector<unique_ptr<Expr>> reGenerateAST(FFISafeExprVec tokens);
 

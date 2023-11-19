@@ -11,7 +11,7 @@ namespace ast
         unique_ptr<Expr> last;
 
     public:
-        ChainExpression(vector<unique_ptr<WhenExpression>> expressions, unique_ptr<Expr> last);
+        ChainExpression(Location location, vector<unique_ptr<WhenExpression>> expressions, unique_ptr<Expr> last);
 
         const vector<unique_ptr<WhenExpression>> &getExpressions();
         const unique_ptr<Expr> &getLast();

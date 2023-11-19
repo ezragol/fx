@@ -1,7 +1,7 @@
 #include "fndef.h"
 
-FunctionDefinition::FunctionDefinition(string name, vector<string> args, unique_ptr<Expr> body)
-    : Expr(FnDef), name(name), args(args), body(std::move(body)){};
+FunctionDefinition::FunctionDefinition(Location location, string name, vector<string> args, unique_ptr<Expr> body)
+    : Expr(FnDef, location), name(name), args(args), body(std::move(body)){};
 
 const string &FunctionDefinition::getName()
 {

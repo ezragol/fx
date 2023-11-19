@@ -1,7 +1,7 @@
 #include "binop.h"
 
-BinaryOperation::BinaryOperation(uint8_t op, unique_ptr<Expr> left, unique_ptr<Expr> right)
-    : Expr(BinaryOp), op(op), left(std::move(left)), right(std::move(right)){};
+BinaryOperation::BinaryOperation(Location location, uint8_t op, unique_ptr<Expr> left, unique_ptr<Expr> right)
+    : Expr(BinaryOp, location), op(op), left(std::move(left)), right(std::move(right)){};
 
 const uint8_t &BinaryOperation::getOp()
 {

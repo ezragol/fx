@@ -34,6 +34,7 @@ int compile(int argc, char *argv[])
     if (generator.runPass(tokens.out))
         return 1;
 
+    free(tokens.out);
     delete targetMachine;
     return 0;
 }

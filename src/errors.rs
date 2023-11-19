@@ -18,6 +18,18 @@ impl Location {
         }
     }
 
+    pub fn get_line(&self) -> usize {
+        self.line
+    }
+
+    pub fn get_column(&self) -> usize {
+        self.column
+    }
+
+    pub fn get_filename(&self) -> String {
+        self.filename.clone()
+    }
+
     pub fn next_line(&mut self) {
         self.column = 0;
         self.line += 1;

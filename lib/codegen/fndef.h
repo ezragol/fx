@@ -12,7 +12,7 @@ namespace ast
         unique_ptr<Expr> body;
 
     public:
-        FunctionDefinition(string name, vector<string> args, unique_ptr<Expr> fnBody);
+        FunctionDefinition(Location location, string name, vector<string> args, unique_ptr<Expr> fnBody);
 
         const string &getName();
         const vector<string> &getArgs();

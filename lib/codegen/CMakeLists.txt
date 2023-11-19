@@ -2,6 +2,8 @@ add_library(codegen)
 
 target_sources(codegen
   PUBLIC
+    errors.h
+    errors.cpp
     ast.h
     ast.cpp
     number.cpp

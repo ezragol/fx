@@ -38,7 +38,6 @@ add_custom_command(
         COMMAND cargo build
         COMMAND fx ${FULLROOT}.txt ${FULLROOT}__.bc
         COMMAND llc -filetype=obj -o ${EXEC}__.o ${FULLROOT}__.bc
-        COMMAND rm ${FULLROOT}__.bc
 )
 
 add_executable(${EXEC}

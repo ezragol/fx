@@ -7,20 +7,14 @@ namespace ast
 {
     class NumberLiteral : public Expr
     {
-        bool floating;
-        int intVal;
-        double floatVal;
+        NumberType value;
 
     public:
-        NumberLiteral(bool floating, int intVal, double floatVal);
+        NumberLiteral(Location location, NumberType value);
 
-        const bool &isFloating();
-        const int &getIntVal();
-        const double &getFloatVal();
+        const NumberType &getValue();
 
-        void setFloating(bool state);
-        void setIntVal(int val);
-        void setFloatVal(double val);
+        void setValue(NumberType value);
     };
 }
 

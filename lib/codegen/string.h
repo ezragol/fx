@@ -10,7 +10,7 @@ namespace ast
         string stringVal;
 
     public:
-        StringLiteral(string stringVal);
+        StringLiteral(Location location, string stringVal);
 
         const string &getStringVal();
 

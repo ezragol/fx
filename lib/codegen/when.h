@@ -11,7 +11,7 @@ namespace ast
         unique_ptr<Expr> result;
 
     public:
-        WhenExpression(unique_ptr<Expr> predicate, unique_ptr<Expr> result);
+        WhenExpression(Location location, unique_ptr<Expr> predicate, unique_ptr<Expr> result);
 
         const unique_ptr<Expr> &getPredicate();
         const unique_ptr<Expr> &getResult();

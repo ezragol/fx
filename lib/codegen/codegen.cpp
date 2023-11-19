@@ -74,41 +74,25 @@ Value *CodeGen::genericGen(const unique_ptr<Expr> &expr)
     switch (expr->getStructure())
     {
         case BinaryOp:
-            return genBinaryOperation((BinaryOperation *) expr.get());
+            return genBinaryOperation(derived(BinaryOperation) expr);
         case ChainExpr:
-            return genChainExpression((ChainExpression *) expr.get());
+            return genChainExpression(derived(ChainExpression) expr);
         case FnCall:
-            return genFunctionCall((FunctionCall *) expr.get());
+            return genFunctionCall(derived(FunctionCall) expr);
         case FnDef:
-            return genFunctionDefinition((FunctionDefinition *) expr.get());
+            return genFunctionDefinition(derived(FunctionDefinition) expr);
         case Num:
-            return genNumberLiteral((NumberLiteral *) expr.get());
+            return genNumberLiteral(derived(NumberLiteral) expr);
         case Ref:
-            return genVariableRef((VariableRef *) expr.get());
+            return genVariableRef(derived(VariableRef) expr);
         case Str:
-            return genStringLiteral((ast::StringLiteral *) expr.get());
-        case WhenExpr:
-            return genWhenExpression((WhenExpression *) expr.get());
+            return genStringLiteral(derived(ast::StringLiteral) expr);
         default:
             return nullptr;
     }
 }
 
-Value *CodeGen::genNumberLiteral(NumberLiteral *num)
-{
-    if (num->isFloating())
-    {
-        return ConstantFP::get(*context, APFloat(num->getFloatVal()));
-    }
-    else
-    {
-        const int &intVal = num->getIntVal();
-        uint8_t bits = floor(log2(intVal)) + 1;
-        return ConstantInt::get(*context, APInt(bits, intVal));
-    }
-}
-
-Function *CodeGen::genFunctionDefinition(FunctionDefinition *def)
+Function *CodeGen::genFunctionDefinition(const unique_ptr<FunctionDefinition> &def)
 {
     // define argument types and return type
     vector<Type *> argT(def->getArgs().size(), Type::getDoubleTy(*context));
@@ -141,8 +125,24 @@ Function *CodeGen::genFunctionDefinition(FunctionDefinition *def)
     return nullptr;
 }
 
+Value *CodeGen::genNumberLiteral(const unique_ptr<NumberLiteral> &num)
+{
+    auto data = num->getValue();
+    switch (data.type)
+    {
+        case i64:
+            return ConstantInt::get(*context, APInt(64, data.value.i64, true));
+        case u64:
+            return ConstantInt::get(*context, APInt(64, data.value.u64));
+        case f64:
+            return ConstantFP::get(*context, APFloat(data.value.f64));
+        default:
+            return nullptr;
+    }
+}
+
 // todo
-Value *CodeGen::genStringLiteral(ast::StringLiteral *string)
+Value *CodeGen::genStringLiteral(const unique_ptr<ast::StringLiteral> &string)
 {
     return ConstantFP::get(*context, APFloat(0.0));
 }
@@ -159,7 +159,7 @@ Value *CodeGen::getPredFCmp(const unique_ptr<WhenExpression> &when)
 }
 
 // todo
-Value *CodeGen::genChainExpression(ChainExpression *chain)
+Value *CodeGen::genChainExpression(const unique_ptr<ChainExpression> &chain)
 {
     vector<BasicBlock *> blocks;
     vector<Value *> results;
@@ -240,7 +240,7 @@ Value *CodeGen::genChainExpression(ChainExpression *chain)
 }
 
 // todo
-Value *CodeGen::genBinaryOperation(BinaryOperation *bin)
+Value *CodeGen::genBinaryOperation(const unique_ptr<BinaryOperation> &bin)
 {
     Value *left = genericGen(bin->getLeft());
     Value *right = genericGen(bin->getRight());
@@ -293,13 +293,7 @@ Value *CodeGen::genBinaryOperation(BinaryOperation *bin)
 }
 
 // todo
-Value *CodeGen::genWhenExpression(WhenExpression *when)
-{
-    return ConstantFP::get(*context, APFloat(0.0));
-}
-
-// todo
-Value *CodeGen::genFunctionCall(FunctionCall *call)
+Value *CodeGen::genFunctionCall(const unique_ptr<FunctionCall> &call)
 {
     Function *fn = loadFunction(call->getName());
     if (!fn)
@@ -330,7 +324,7 @@ Value *CodeGen::genFunctionCall(FunctionCall *call)
 }
 
 // todo
-Value *CodeGen::genVariableRef(VariableRef *ref)
+Value *CodeGen::genVariableRef(const unique_ptr<VariableRef> &ref)
 {
     string name = ref->getName();
     Value *var = namedValues[name];

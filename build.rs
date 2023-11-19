@@ -15,6 +15,9 @@ fn main() {
 
     let config = Config {
         namespace: Some(String::from("ffi")),
+        // SO SO SO SO TERRIBLE
+        // I HATE IT
+        after_includes: Some(String::from("namespace ffi { struct LocatedFFISafeExpr; };")),
         ..Default::default()
     };
 
