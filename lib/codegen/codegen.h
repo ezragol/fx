@@ -67,19 +67,19 @@ class CodeGen
     Value *genFunctionCall(const unique_ptr<FunctionCall> &call);
     Value *genVariableRef(const unique_ptr<VariableRef> &ref);
 
-    CodegenError *error;
+    CodeGenError *error;
     void addToError(string message, Location location);
 
 public:
     CodeGen(string targetTriple, TargetMachine *targetMachine);
+    ~CodeGen();
+
     const unique_ptr<LLVMContext> &getContext();
 
     int runPass(string outFile);
     Function *loadFunction(string name);
     Value *genericGen(const unique_ptr<Expr> &expr);
     void printError();
-
-    virtual ~CodeGen() = default;
 };
 
 #endif

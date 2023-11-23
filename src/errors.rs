@@ -40,7 +40,7 @@ impl Location {
     }
 
     pub fn get_message(&self) -> String {
-        format!("@{}:{}:{}\n", self.filename, self.line, self.column)
+        format!("@{}:{}:{}", self.filename, self.line, self.column)
     }
 }
 
@@ -60,13 +60,23 @@ macro_rules! def {
                 })
                 .into())
             }
+
+            #[allow(dead_code)]
+            pub fn basic(location: Option<Location>) -> $name {
+                $name {
+                    location,
+                    stage_name: "parse".to_string(),
+                }
+            }
+
             #[allow(dead_code)]
             pub fn while_parsing<T>(location: Location) -> Result<T> {
-                $name::new(Some(location), "parsing")
+                $name::new(Some(location), "parse")
             }
+            
             #[allow(dead_code)]
             pub fn while_initializing<T>() -> Result<T> {
-                $name::new(None, "initializing")
+                $name::new(None, "init")
             }
         }
 
@@ -77,11 +87,11 @@ macro_rules! def {
                 let msg = if let Some(l) = self.location.clone() {
                     l.get_message()
                 } else {
-                    String::new()
+                    "internal".to_string()
                 };
                 write!(
                     f,
-                    "[[ error while {} ]]\n{}{}",
+                    "\n\nERROR: [{}]\n >>   {}, {}\n\n",
                     self.stage_name, msg, $error
                 )
             }
@@ -98,3 +108,4 @@ def!(UnknownTokenError, "unknown token!");
 def!(BadCommaError, "comma placed badly!");
 def!(BadArgumentError, "bad argument...");
 def!(MissingOutputFileError, "no output file supplied!");
+def!(UnbalancedBinaryExpressionError, "unbalanced binary expression!");

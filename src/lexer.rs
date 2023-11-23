@@ -329,6 +329,7 @@ impl Interpreter {
                     tokens.push(token);
                 }
                 Err(e) => {
+                    println!("{} == {}", self.index, self.size);
                     return if !self.done() {
                         Err(e)
                     } else {

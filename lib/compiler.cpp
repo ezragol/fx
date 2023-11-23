@@ -24,8 +24,6 @@ int compile(int argc, char *argv[])
     CodeGen generator(targetTriple, targetMachine);
     FFISafeExprVec tokens = recieve_tokens(argv, argc);
     auto tree = reGenerateAST(tokens);
-    drop_all(tokens.ptr, tokens.len);
-
     bool cont = true;
 
     for (auto &branch : tree)
@@ -41,9 +39,11 @@ int compile(int argc, char *argv[])
 
     if (cont && generator.runPass(tokens.out))
         cont = false;
-        
+
     free(tokens.out);
+    drop_all(tokens.ptr, tokens.len);
     delete targetMachine;
+
     if (cont)
         return 0;
     return 1;

@@ -1,7 +1,7 @@
 #include "codegen.h"
 
 CodeGen::CodeGen(string targetTriple, TargetMachine *targetMachine)
-    : targetTriple(targetTriple), targetMachine(targetMachine)
+    : targetTriple(targetTriple), targetMachine(targetMachine), error(nullptr)
 {
     context = make_unique<LLVMContext>();
     llvmModule = make_unique<Module>("fx", *context);
@@ -9,6 +9,11 @@ CodeGen::CodeGen(string targetTriple, TargetMachine *targetMachine)
 
     llvmModule->setTargetTriple(targetTriple);
     llvmModule->setDataLayout(targetMachine->createDataLayout());
+}
+
+CodeGen::~CodeGen()
+{
+    delete error;
 }
 
 const unique_ptr<LLVMContext> &CodeGen::getContext()
@@ -20,7 +25,7 @@ void CodeGen::addToError(string message, Location location)
 {
     if (!error)
     {
-        error = new CodegenError(message, location);
+        error = new CodeGenError(message, location);
     }
     else
     {
@@ -31,7 +36,6 @@ void CodeGen::addToError(string message, Location location)
 void CodeGen::printError()
 {
     error->print();
-    delete error;
 }
 
 int CodeGen::runPass(string outFile)
@@ -105,10 +109,14 @@ Value *CodeGen::genericGen(const unique_ptr<Expr> &expr)
         return genVariableRef(derived(VariableRef) expr);
     case Str:
         return genStringLiteral(derived(ast::StringLiteral) expr);
+    case WhenExpr:
+        addToError("dangling 'when' not allowed", expr->getLocation());
+        break;
     default:
         addToError("unknown generator action", expr->getLocation());
-        return nullptr;
+        break;
     }
+    return nullptr;
 }
 
 Function *CodeGen::genFunctionDefinition(const unique_ptr<FunctionDefinition> &def)

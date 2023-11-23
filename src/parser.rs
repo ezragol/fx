@@ -1,9 +1,10 @@
-use crate::{ast::*, dbg, errors::*, lexer::*};
-use std::{fs::File, io::BufReader};
+use crate::{ast::*, errors::*, lexer::*};
+use std::{error::Error, fs::File, io::BufReader};
 
 pub struct Parser {
     tokens: Vec<LocatedToken>,
     index: usize,
+    stack: Vec<Box<dyn Error>>,
 }
 
 #[cfg(test)]
@@ -115,12 +116,37 @@ impl Parser {
         Ok(Parser {
             tokens: lexer.pull()?,
             index: 0,
+            stack: vec![],
         })
     }
 
     // no coverage
     pub fn from_tree(tokens: Vec<LocatedToken>) -> Parser {
-        Parser { tokens, index: 0 }
+        Parser {
+            tokens,
+            index: 0,
+            stack: vec![],
+        }
+    }
+
+    pub fn or_dump<T>(&self, opt: Result<T>) -> T {
+        match opt {
+            Ok(v) => v,
+            Err(e) => {
+                self.print_error();
+                panic!("{}", e);
+            }
+        }
+    }
+
+    fn add_to_stack(&mut self, error: Box<dyn Error>) {
+        self.stack.push(error);
+    }
+
+    pub fn print_error(&self) {
+        for error in &self.stack {
+            panic!("{}", *error);
+        }
     }
 
     // if you change this, make sure to change BASIC_OP_COUNT above
@@ -187,11 +213,14 @@ impl Parser {
         let identifier = self.expect_identifier()?;
         let next = self.next_token()?;
         match next.tok() {
-            Token::Grouping(args) => Ok(LocatedExpr::new(Expr::FunctionDefinition(
-                identifier,
-                Parser::parse_def_args(args)?,
-                self.parse_expr_or_err()?.into(),
-            ), next.loc())),
+            Token::Grouping(args) => Ok(LocatedExpr::new(
+                Expr::FunctionDefinition(
+                    identifier,
+                    Parser::parse_def_args(args)?,
+                    self.parse_expr_or_err()?.into(),
+                ),
+                next.loc(),
+            )),
             _ => DeclarationError::while_parsing(next.loc()),
         }
     }
@@ -321,12 +350,13 @@ impl Parser {
 
     fn parse_non_symbol(&mut self, symbol: LocatedToken) -> Option<LocatedExpr> {
         match symbol.tok() {
-            Token::Identifier(ident) => Some(LocatedExpr::new(Expr::VariableRef(ident), symbol.loc())),
-            Token::Number(int, float) => Some(LocatedExpr::new(Expr::NumberLiteral(
-                int.is_none(),
-                int.unwrap_or(0),
-                float.unwrap_or(0.0),
-            ), symbol.loc())),
+            Token::Identifier(ident) => {
+                Some(LocatedExpr::new(Expr::VariableRef(ident), symbol.loc()))
+            }
+            Token::Number(int, float) => Some(LocatedExpr::new(
+                Expr::NumberLiteral(int.is_none(), int.unwrap_or(0), float.unwrap_or(0.0)),
+                symbol.loc(),
+            )),
             Token::String(s) => Some(LocatedExpr::new(Expr::StringLiteral(s), symbol.loc())),
             Token::Grouping(tokens) => Parser::parse_grouping(tokens, true),
             // fix
@@ -342,45 +372,59 @@ impl Parser {
         }
     }
 
-    fn branch(&mut self, tokens: Vec<LocatedToken>, mut indexes: Vec<(usize, u8)>) -> Option<LocatedExpr> {
+    fn branch(
+        &mut self,
+        tokens: Vec<LocatedToken>,
+        mut indexes: Vec<(usize, u8)>,
+    ) -> Option<LocatedExpr> {
         let mut last_index = 0;
         let mut tree = None;
         indexes.sort_by(|a, b| a.1.cmp(&b.1));
 
         for (index, prec) in indexes {
-            if tree.is_none() {
-                let branch = Expr::BinaryOperation(
-                    prec,
-                    self.parse_non_symbol(tokens[index - 1].clone())?.into(),
-                    self.parse_non_symbol(tokens[index + 1].clone())?.into(),
+            let max = tokens.len();
+            if index >= max - 1 {
+                self.add_to_stack(
+                    UnbalancedBinaryExpressionError::basic(Some(tokens[index].loc())).into(),
                 );
-                tree = Some(LocatedExpr::new(branch, tokens[index].loc()));
-                last_index = index;
-            } else {
-                let branch;
-                if last_index < index {
-                    branch = Expr::BinaryOperation(
-                        prec,
-                        tree.unwrap().into(),
-                        self.parse_non_symbol(tokens[index + 1].clone())?.into(),
-                    );
-                } else {
-                    branch = Expr::BinaryOperation(
+                return None;
+            }
+
+            match tree {
+                None => {
+                    let branch = Expr::BinaryOperation(
                         prec,
                         self.parse_non_symbol(tokens[index - 1].clone())?.into(),
-                        tree.unwrap().into(),
+                        self.parse_non_symbol(tokens[index + 1].clone())?.into(),
                     );
+                    tree = Some(LocatedExpr::new(branch, tokens[index].loc()));
+                    last_index = index;
                 }
-                tree = Some(LocatedExpr::new(branch, tokens[index].loc()));
-                last_index = index;
+                Some(t) => {
+                    let branch;
+                    if last_index < index {
+                        branch = Expr::BinaryOperation(
+                            prec,
+                            t.into(),
+                            self.parse_non_symbol(tokens[index + 1].clone())?.into(),
+                        );
+                    } else {
+                        branch = Expr::BinaryOperation(
+                            prec,
+                            self.parse_non_symbol(tokens[index - 1].clone())?.into(),
+                            t.into(),
+                        );
+                    }
+                    tree = Some(LocatedExpr::new(branch, tokens[index].loc()));
+                    last_index = index;
+                }
             }
         }
 
-        if tree.is_none() {
-            return Some(self.parse_non_symbol(tokens[0].clone())?);
+        match tree {
+            None => Some(self.parse_non_symbol(tokens[0].clone())?),
+            t => t,
         }
-
-        Some(tree.unwrap())
     }
 
     fn parse_expression(&mut self) -> Option<LocatedExpr> {
@@ -391,8 +435,14 @@ impl Parser {
 
         for token in &tokens {
             if token.tok() == Token::Symbol(Symbol::Comma) {
-                let expressions = Parser::parse_chain(tokens.clone(), false).unwrap();
-                return Some(LocatedExpr::new(Expr::ChainExpression(expressions), token.loc()));
+                let expressions = Parser::parse_chain(tokens.clone(), false);
+                return match expressions {
+                    Err(e) => {
+                        self.add_to_stack(e);
+                        None
+                    }
+                    Ok(expr) => Some(LocatedExpr::new(Expr::ChainExpression(expr), token.loc())),
+                };
             }
         }
 
@@ -432,11 +482,14 @@ impl Parser {
                 .map(|(index, prec)| (index - when_index - 1, prec))
                 .collect();
 
-            return Some(LocatedExpr::new(Expr::WhenExpression(
-                self.branch(tokens[when_index + 1..].to_vec(), right)?
-                    .into(),
-                self.branch(tokens[..when_index].to_vec(), left)?.into(),
-            ), tokens[when_index].loc()));
+            return Some(LocatedExpr::new(
+                Expr::WhenExpression(
+                    self.branch(tokens[when_index + 1..].to_vec(), right)?
+                        .into(),
+                    self.branch(tokens[..when_index].to_vec(), left)?.into(),
+                ),
+                tokens[when_index].loc(),
+            ));
         } else {
             self.branch(tokens, op_indexes)
         }
@@ -523,7 +576,15 @@ impl Parser {
             next = Some(token);
 
             if let Token::Let = next.clone().unwrap().tok() {
-                tree.push(dbg(self.parse_definition()));
+                match self.parse_definition() {
+                    Ok(def) => {
+                        tree.push(def);
+                    }
+                    Err(e) => {
+                        self.print_error();
+                        panic!("{}", e);
+                    }
+                }
             } else {
                 match next.unwrap().tok() {
                     Token::Identifier(_)
@@ -531,7 +592,8 @@ impl Parser {
                     | Token::Grouping(_)
                     | Token::FunctionCall(_, _) => {
                         self.back();
-                        tree.push(dbg(self.parse_expr_or_err()));
+                        let expr = self.parse_expr_or_err();
+                        tree.push(self.or_dump(expr));
                     }
                     _ => {}
                 }

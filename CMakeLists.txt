@@ -30,12 +30,17 @@ include_directories(${LLVM_INCLUDE_DIRS})
 separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
 add_definitions(${LLVM_DEFINITIONS_LIST})
 
+add_custom_target(
+        lib_rfx
+        COMMAND cargo build)
+
 add_executable(fx main.cpp)
+add_dependencies(fx lib_rfx)
+
 add_subdirectory(lib)
 add_custom_command(
         OUTPUT ${EXEC}__.o
         DEPENDS ${FULLROOT}.txt
-        COMMAND cargo build
         COMMAND fx ${FULLROOT}.txt ${FULLROOT}__.bc
         COMMAND llc -filetype=obj -o ${EXEC}__.o ${FULLROOT}__.bc
 )
@@ -45,5 +50,3 @@ add_executable(${EXEC}
         ${EXEC}__.o)
 
 target_link_libraries(fx PUBLIC lib)
-
-execute_process(COMMAND cargo build)

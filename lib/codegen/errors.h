@@ -5,7 +5,7 @@
 using namespace std;
 
 #define internal_err Location(0, 0, "internal")
-#define err(M, L) CodegenError::printStatic(M, L) 
+#define err(M, L) CodeGenError::printStatic(M, L) 
 
 class Location
 {
@@ -20,14 +20,14 @@ public:
     string getMessage();
 };
 
-class CodegenError
+class CodeGenError
 {
 private:
     vector<string> stack;
     vector<Location> locations;
 
 public:
-    CodegenError(string message, Location location);
+    CodeGenError(string message, Location location);
     
     void addToStack(string message, Location location);
     void print();
