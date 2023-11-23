@@ -26,15 +26,25 @@ int compile(int argc, char *argv[])
     auto tree = reGenerateAST(tokens);
     drop_all(tokens.ptr, tokens.len);
 
+    bool cont = true;
+
     for (auto &branch : tree)
     {
-        generator.genericGen(branch);
+        auto value = generator.genericGen(branch);
+        if (!value)
+        {
+            generator.printError();
+            cont = false;
+            break;
+        }
     }
 
-    if (generator.runPass(tokens.out))
-        return 1;
-
+    if (cont && generator.runPass(tokens.out))
+        cont = false;
+        
     free(tokens.out);
     delete targetMachine;
-    return 0;
+    if (cont)
+        return 0;
+    return 1;
 }

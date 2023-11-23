@@ -16,6 +16,24 @@ const unique_ptr<LLVMContext> &CodeGen::getContext()
     return context;
 }
 
+void CodeGen::addToError(string message, Location location)
+{
+    if (!error)
+    {
+        error = new CodegenError(message, location);
+    }
+    else
+    {
+        error->addToStack(message, location);
+    }
+}
+
+void CodeGen::printError()
+{
+    error->print();
+    delete error;
+}
+
 int CodeGen::runPass(string outFile)
 {
     auto fileType = CGFT_ObjectFile;
@@ -65,7 +83,7 @@ Function *CodeGen::loadFunction(string name)
     {
         return fn;
     }
-    errs() << "can't find function!\n";
+    addToError("unknown function '" + name + "'", internal_err);
     return nullptr;
 }
 
@@ -73,22 +91,23 @@ Value *CodeGen::genericGen(const unique_ptr<Expr> &expr)
 {
     switch (expr->getStructure())
     {
-        case BinaryOp:
-            return genBinaryOperation(derived(BinaryOperation) expr);
-        case ChainExpr:
-            return genChainExpression(derived(ChainExpression) expr);
-        case FnCall:
-            return genFunctionCall(derived(FunctionCall) expr);
-        case FnDef:
-            return genFunctionDefinition(derived(FunctionDefinition) expr);
-        case Num:
-            return genNumberLiteral(derived(NumberLiteral) expr);
-        case Ref:
-            return genVariableRef(derived(VariableRef) expr);
-        case Str:
-            return genStringLiteral(derived(ast::StringLiteral) expr);
-        default:
-            return nullptr;
+    case BinaryOp:
+        return genBinaryOperation(derived(BinaryOperation) expr);
+    case ChainExpr:
+        return genChainExpression(derived(ChainExpression) expr);
+    case FnCall:
+        return genFunctionCall(derived(FunctionCall) expr);
+    case FnDef:
+        return genFunctionDefinition(derived(FunctionDefinition) expr);
+    case Num:
+        return genNumberLiteral(derived(NumberLiteral) expr);
+    case Ref:
+        return genVariableRef(derived(VariableRef) expr);
+    case Str:
+        return genStringLiteral(derived(ast::StringLiteral) expr);
+    default:
+        addToError("unknown generator action", expr->getLocation());
+        return nullptr;
     }
 }
 
@@ -121,7 +140,7 @@ Function *CodeGen::genFunctionDefinition(const unique_ptr<FunctionDefinition> &d
     }
 
     fn->eraseFromParent();
-    errs() << "missing return val!\n";
+    addToError("while parsing function definition", def->getLocation());
     return nullptr;
 }
 
@@ -130,14 +149,15 @@ Value *CodeGen::genNumberLiteral(const unique_ptr<NumberLiteral> &num)
     auto data = num->getValue();
     switch (data.type)
     {
-        case i64:
-            return ConstantInt::get(*context, APInt(64, data.value.i64, true));
-        case u64:
-            return ConstantInt::get(*context, APInt(64, data.value.u64));
-        case f64:
-            return ConstantFP::get(*context, APFloat(data.value.f64));
-        default:
-            return nullptr;
+    case i64:
+        return ConstantInt::get(*context, APInt(64, data.value.i64, true));
+    case u64:
+        return ConstantInt::get(*context, APInt(64, data.value.u64));
+    case f64:
+        return ConstantFP::get(*context, APFloat(data.value.f64));
+    default:
+        addToError("unknown number type", num->getLocation());
+        return nullptr;
     }
 }
 
@@ -152,7 +172,7 @@ Value *CodeGen::getPredFCmp(const unique_ptr<WhenExpression> &when)
     Value *predicate = genericGen(when->getPredicate());
     if (!predicate)
     {
-        errs() << "missing predicate!\n";
+        addToError("while parsing predicate!\n", when->getLocation());
         return nullptr;
     }
     return builder->CreateFCmpONE(predicate, ConstantFP::get(*context, APFloat(0.0)), "ifcond");
@@ -167,7 +187,7 @@ Value *CodeGen::genChainExpression(const unique_ptr<ChainExpression> &chain)
     Value *predicate = getPredFCmp(chain->getExpressions()[0]);
     if (!predicate)
     {
-        errs() << "missing predicate!\n";
+        addToError("while parsing chain", chain->getLocation());
         return nullptr;
     }
 
@@ -188,7 +208,7 @@ Value *CodeGen::genChainExpression(const unique_ptr<ChainExpression> &chain)
 
         if (!result)
         {
-            errs() << "missing result!\n";
+            addToError("while parsing chain link", last->getLocation());
             return nullptr;
         }
 
@@ -204,7 +224,7 @@ Value *CodeGen::genChainExpression(const unique_ptr<ChainExpression> &chain)
             predicate = getPredFCmp(when);
             if (!predicate)
             {
-                errs() << "missing predicate!\n";
+                addToError("while parsing chain link", when->getLocation());
                 return nullptr;
             }
             current = BasicBlock::Create(*context, "then", parent);
@@ -217,7 +237,7 @@ Value *CodeGen::genChainExpression(const unique_ptr<ChainExpression> &chain)
             Value *final = genericGen(chain->getLast());
             if (!final)
             {
-                errs() << "missing result!\n";
+                addToError("while parsing last chain link", chain->getLast()->getLocation());
                 return nullptr;
             }
             builder->CreateBr(merge);
@@ -245,9 +265,15 @@ Value *CodeGen::genBinaryOperation(const unique_ptr<BinaryOperation> &bin)
     Value *left = genericGen(bin->getLeft());
     Value *right = genericGen(bin->getRight());
 
-    if (!left || !right)
+    if (!left)
     {
-        errs() << "error inside binary operator!\n";
+        addToError("while parsing left side of binary operation", bin->getLeft()->getLocation());
+        return nullptr;
+    }
+
+    if (!right)
+    {
+        addToError("while parsing right side of binary operation", bin->getRight()->getLocation());
         return nullptr;
     }
 
@@ -284,7 +310,7 @@ Value *CodeGen::genBinaryOperation(const unique_ptr<BinaryOperation> &bin)
         left = builder->CreateFCmpUNE(left, right, "unetmp");
         break;
     default:
-        errs() << "unknown operator!\n";
+        addToError("unknown operator", bin->getLocation());
         return nullptr;
     }
 
@@ -298,14 +324,14 @@ Value *CodeGen::genFunctionCall(const unique_ptr<FunctionCall> &call)
     Function *fn = loadFunction(call->getName());
     if (!fn)
     {
-        errs() << "unknown function!\n";
+        addToError("while loading function '" + call->getName() + "'", call->getLocation());
         return nullptr;
     }
 
     int callArgCount = call->getArgs().size();
     if (fn->arg_size() != callArgCount)
     {
-        errs() << "mismatched arg count!\n";
+        addToError("mismatched argument count ", call->getLocation());
         return nullptr;
     }
 
@@ -315,7 +341,7 @@ Value *CodeGen::genFunctionCall(const unique_ptr<FunctionCall> &call)
         argv.push_back(genericGen(call->getArgs()[i]));
         if (!argv.back())
         {
-            errs() << "missing args!\n";
+            addToError("broken arguments", call->getLocation());
             return nullptr;
         }
     }
@@ -330,7 +356,7 @@ Value *CodeGen::genVariableRef(const unique_ptr<VariableRef> &ref)
     Value *var = namedValues[name];
     if (!var)
     {
-        errs() << "unknown variable name!";
+        addToError("unknown variable", ref->getLocation());
         return nullptr;
     }
 

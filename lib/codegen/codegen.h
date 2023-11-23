@@ -51,6 +51,7 @@ class CodeGen
     unique_ptr<LLVMContext> context;
     unique_ptr<Module> llvmModule;
     unique_ptr<IRBuilder<>> builder;
+
     map<string, AllocaInst *> namedValues;
     vector<unique_ptr<FunctionDefinition>> functionDefs;
     string targetTriple;
@@ -66,14 +67,17 @@ class CodeGen
     Value *genFunctionCall(const unique_ptr<FunctionCall> &call);
     Value *genVariableRef(const unique_ptr<VariableRef> &ref);
 
+    CodegenError *error;
+    void addToError(string message, Location location);
+
 public:
     CodeGen(string targetTriple, TargetMachine *targetMachine);
     const unique_ptr<LLVMContext> &getContext();
 
     int runPass(string outFile);
     Function *loadFunction(string name);
-
     Value *genericGen(const unique_ptr<Expr> &expr);
+    void printError();
 
     virtual ~CodeGen() = default;
 };
