@@ -1,7 +1,7 @@
 # fx
 
 ## dependencies
-- llvm16 (+ llc)
+- llvm16 (+ clang)
 - cmake
 
 ## what works

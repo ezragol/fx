@@ -16,6 +16,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Variables
+      run: export CC=/usr/bin/clang && export CXX=/usr/bin/clang++
     - name: Install LLVM
       run: sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
     - name: Install Valgrind
