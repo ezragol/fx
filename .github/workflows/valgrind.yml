@@ -16,14 +16,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Variables
-      run: export CC=/usr/bin/clang && export CXX=/usr/bin/clang++
     - name: Install LLVM
       run: sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
     - name: Install Valgrind
       run: sudo apt install -y valgrind
     - name: Configure
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DLLVM_TARGETS_TO_BUILD=x86
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DLLVM_TARGETS_TO_BUILD=x86 -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
     - name: Run Valgrind
