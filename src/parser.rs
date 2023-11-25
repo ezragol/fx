@@ -21,6 +21,15 @@ mod tests {
         Parser::new(&path(file))
     }
 
+    pub fn parser_from_tree_raw(unlocated: Vec<Token>) -> Parser {
+        Parser::from_tree(
+            unlocated
+                .iter()
+                .map(|t| LocatedToken::new(t.clone(), Location::internal().unwrap()))
+                .collect(),
+        )
+    }
+
     #[test]
     fn new() {
         let parser = parser_from("basic");
@@ -98,17 +107,74 @@ mod tests {
         assert_eq!(parser.expect_identifier().unwrap(), "age".to_string());
     }
 
-    // #[test]
-    // fn look_ahead() {
-    //     let tokens = vec![Token::Let, Token::Newline, Token::Let];
-    //     let mut parser = Parser::from_tree(tokens);
-    //     assert_eq!(parser.look_ahead().unwrap().tok(), Token::Let);
-    //     assert_eq!(parser.look_ahead().unwrap().tok(), Token::Let);
-    //     assert!(parser.look_ahead().is_err());
-    // }
+    #[test]
+    fn look_ahead() {
+        let tokens = vec![Token::Let, Token::Newline, Token::Let];
+        let mut parser = parser_from_tree_raw(tokens);
+        assert_eq!(parser.look_ahead().unwrap().tok(), Token::Let);
+        assert_eq!(parser.look_ahead().unwrap().tok(), Token::Let);
+        assert!(parser.look_ahead().is_err());
+    }
+
+    #[test]
+    fn push() {
+        let tokens = vec![Token::Let, Token::When, Token::Newline, Token::Extern];
+        let mut parser = parser_from_tree_raw(tokens);
+        parser.push(-1);
+        assert_eq!(parser.index, 0);
+        parser.push(1);
+        assert_eq!(parser.index, 1);
+        parser.push(-1);
+        assert_eq!(parser.index, 0);
+    }
+
+    #[test]
+    fn back() {
+        let tokens = vec![Token::Let, Token::When, Token::Newline, Token::Extern];
+        let mut parser = parser_from_tree_raw(tokens);
+        parser.back();
+        assert_eq!(parser.index, 0);
+        parser.push(3);
+        parser.back();
+        assert_eq!(parser.index, 2);
+    }
+
+    #[test]
+    fn forward() {
+        let tokens = vec![Token::Let, Token::When, Token::Newline, Token::Extern];
+        let mut parser = parser_from_tree_raw(tokens);
+        parser.forward();
+        assert_eq!(parser.index, 1);
+        parser.forward();
+        assert_eq!(parser.index, 2);
+    }
+
+    #[test]
+    fn last() {
+        let tokens = vec![Token::Let, Token::When, Token::Newline, Token::Extern];
+        let mut parser = parser_from_tree_raw(tokens);
+        assert!(parser.last().is_err());
+        parser.forward();
+        assert_eq!(parser.last().unwrap().tok(), Token::Let);
+        parser.forward();
+        assert_eq!(parser.last().unwrap().tok(), Token::When);
+        parser.forward();
+        assert_eq!(parser.last().unwrap().tok(), Token::Newline);
+        parser.forward();
+        assert_eq!(parser.last().unwrap().tok(), Token::Extern);
+    }
+
+    #[test]
+    fn parse_expr_or_err() {
+        let tokens_err = vec![Token::Let, Token::When, Token::Newline, Token::Extern];
+        let tokens_err = vec![Token::Let, Token::When, Token::Newline, Token::Extern];
+        let mut parser = parser_from_tree_raw(tokens_err);
+        assert!(parser.parse_expr_or_err().is_err());
+    }
 }
 
 impl Parser {
+    // Create a new `Parser` from the given source file
     pub fn new(src: &str) -> Result<Parser> {
         let file = BufReader::new(File::open(src)?);
         let mut lexer = Interpreter::new(file, src.to_string())?;
@@ -120,7 +186,6 @@ impl Parser {
         })
     }
 
-    // no coverage
     pub fn from_tree(tokens: Vec<LocatedToken>) -> Parser {
         Parser {
             tokens,
@@ -178,12 +243,17 @@ impl Parser {
         }
     }
 
-    fn current(&self) -> LocatedToken {
-        self.tokens[self.index - 1].clone()
+    fn last(&self) -> Result<LocatedToken> {
+        if self.index == 0 || self.tokens.len() < self.index - 1 {
+            EofError::while_initializing()
+        } else {
+            Ok(self.tokens[self.index - 1].clone())
+        }
     }
 
     fn next_token(&mut self) -> Result<LocatedToken> {
         if self.index >= self.tokens.len() {
+            self.add_to_stack(EofError::basic(Location::internal()).into());
             EofError::while_initializing()
         } else {
             let next = self.tokens[self.index].clone();
@@ -205,7 +275,7 @@ impl Parser {
     fn parse_expr_or_err(&mut self) -> Result<LocatedExpr> {
         match self.parse_expression() {
             Some(expr) => Ok(expr),
-            _ => DeclarationError::while_parsing(self.current().loc()),
+            _ => DeclarationError::while_parsing(self.last()?.loc()),
         }
     }
 
@@ -297,48 +367,44 @@ impl Parser {
     fn read_expr_tokens(&mut self) -> Vec<LocatedToken> {
         let mut tokens = vec![];
         loop {
-            if let Ok(token) = self.next_token() {
-                match token.tok() {
-                    Token::Newline => {
-                        let Ok(next) = self.next_token() else {
-                            continue;
-                        };
-                        if let Token::Let = next.tok() {
-                            self.back();
-                            break;
-                        } else if let Token::Symbol(_) = next.tok() {
-                            if self.behind_is_expr().is_none() {
-                                break;
-                            }
-                        } else if self.behind_is_operation().is_none() {
+            let Ok(token) = self.next_token() else { break };
+            match token.tok() {
+                Token::Newline => {
+                    let Ok(next) = self.next_token() else { break };
+                    if let Token::Let = next.tok() {
+                        self.back();
+                        break;
+                    } else if let Token::Symbol(_) = next.tok() {
+                        if self.behind_is_expr().is_none() {
                             break;
                         }
-                    }
-                    Token::Symbol(_)
-                    | Token::Identifier(_)
-                    | Token::Number(_, _)
-                    | Token::Grouping(_)
-                    | Token::When
-                    | Token::String(_)
-                    | Token::FunctionCall(_, _) => {
-                        if tokens.len() > 0 || !matches!(token.tok(), Token::Symbol(Symbol::Equals))
-                        {
-                            tokens.push(token);
-                        }
-                    }
-                    _ => {
+                    } else if let Token::When = next.tok() {
+                        self.back();
+                    } else if self.behind_is_operation().is_none() {
                         break;
                     }
                 }
-            } else {
-                break;
+                Token::Symbol(_)
+                | Token::Identifier(_)
+                | Token::Number(_, _)
+                | Token::Grouping(_)
+                | Token::When
+                | Token::String(_)
+                | Token::FunctionCall(_, _) => {
+                    if tokens.len() > 0 || !matches!(token.tok(), Token::Symbol(Symbol::Equals)) {
+                        tokens.push(token);
+                    }
+                }
+                _ => {
+                    break;
+                }
             }
         }
         return tokens;
     }
 
     fn parse_grouping(tokens: Vec<LocatedToken>, with_brackets: bool) -> Option<LocatedExpr> {
-        let change = if with_brackets { 1 } else { 0 };
+        let change = with_brackets as usize;
 
         if tokens.len() > 2 * change {
             let mut parser = Parser::from_tree(tokens[change..tokens.len() - change].to_vec());
@@ -459,12 +525,12 @@ impl Parser {
                 Token::Symbol(Symbol::Compound(first, second)) => {
                     op_indexes.push((
                         reader.index - 1,
-                        Parser::compound_op_prec((*first, *second)).unwrap(),
+                        Parser::compound_op_prec((*first, *second))?,
                     ));
                 }
                 // auto unwrap because otherwise it would not have even been added to token list
                 Token::Symbol(op) => {
-                    op_indexes.push((reader.index - 1, Parser::basic_op_prec(op).unwrap()))
+                    op_indexes.push((reader.index - 1, Parser::basic_op_prec(op)?))
                 }
                 _ => {}
             }
@@ -546,7 +612,7 @@ impl Parser {
                     current_group = vec![];
 
                     // really fucking interesting
-                    // just revisited this holy bad code but ok
+                    // just revisited this. holy shit
                     if let Token::Bracket(Bracket::Parens(Is::Closed)) = next.tok() {
                         return Ok(arg_tree);
                     }
@@ -566,16 +632,12 @@ impl Parser {
     }
 
     pub fn run(&mut self) -> Vec<LocatedExpr> {
-        let mut next: Option<LocatedToken>;
         let mut tree: Vec<LocatedExpr> = vec![];
 
         loop {
-            let Ok(token) = self.next_token() else {
-                break;
-            };
-            next = Some(token);
+            let Ok(token) = self.next_token() else { break };
 
-            if let Token::Let = next.clone().unwrap().tok() {
+            if let Token::Let = token.tok() {
                 match self.parse_definition() {
                     Ok(def) => {
                         tree.push(def);
@@ -586,7 +648,7 @@ impl Parser {
                     }
                 }
             } else {
-                match next.unwrap().tok() {
+                match token.tok() {
                     Token::Identifier(_)
                     | Token::Extern
                     | Token::Grouping(_)

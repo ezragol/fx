@@ -188,6 +188,7 @@ impl Interpreter {
                     next = self.next()?;
                     if next != '\n' {
                         self.index -= 1;
+                        self.current_location.previous_column();
                         break;
                     }
                 }
@@ -212,6 +213,7 @@ impl Interpreter {
                 next = self.next()?;
                 if !Interpreter::ident(next) && !next.is_numeric() {
                     self.index -= 1;
+                    self.current_location.previous_column();
                     break;
                 }
             }
@@ -240,6 +242,7 @@ impl Interpreter {
             let mut int_val: Option<isize> = None;
             let mut float_val = None;
             self.index -= 1;
+            self.current_location.previous_column();
             if num == "." {
                 next = '.';
             } else {
@@ -270,6 +273,7 @@ impl Interpreter {
                     return Ok(self.lt(Token::Symbol(Symbol::Compound(op.into(), second.into()))));
                 }
                 self.index -= 1;
+                self.current_location.previous_column();
             }
             return Ok(self.lt(Token::Symbol(op)));
         }
@@ -329,7 +333,6 @@ impl Interpreter {
                     tokens.push(token);
                 }
                 Err(e) => {
-                    println!("{} == {}", self.index, self.size);
                     return if !self.done() {
                         Err(e)
                     } else {

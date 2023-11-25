@@ -7,6 +7,7 @@ pub struct Location {
     line: usize,
     column: usize,
     filename: String,
+    last_line_width: usize
 }
 
 impl Location {
@@ -15,7 +16,17 @@ impl Location {
             line,
             column,
             filename,
+            last_line_width: 0
         }
+    }
+
+    pub fn internal() -> Option<Location> {
+        Some(Location {
+            line: 0,
+            column: 0,
+            filename: "interal".to_string(),
+            last_line_width: 0
+        })
     }
 
     pub fn get_line(&self) -> usize {
@@ -31,8 +42,17 @@ impl Location {
     }
 
     pub fn next_line(&mut self) {
+        self.last_line_width = self.column;
         self.column = 0;
         self.line += 1;
+    }
+
+    pub fn previous_column(&mut self) {
+        if self.column == 0 {
+            self.line -= 1;
+            self.column = self.last_line_width;
+        }
+        self.column -= 1;
     }
 
     pub fn next_column(&mut self) {
@@ -40,7 +60,7 @@ impl Location {
     }
 
     pub fn get_message(&self) -> String {
-        format!("@{}:{}:{}", self.filename, self.line, self.column)
+        format!("@{}:{}:{}", self.filename, self.line + 1, self.column + 1)
     }
 }
 
@@ -73,7 +93,7 @@ macro_rules! def {
             pub fn while_parsing<T>(location: Location) -> Result<T> {
                 $name::new(Some(location), "parse")
             }
-            
+
             #[allow(dead_code)]
             pub fn while_initializing<T>() -> Result<T> {
                 $name::new(None, "init")
@@ -108,4 +128,7 @@ def!(UnknownTokenError, "unknown token!");
 def!(BadCommaError, "comma placed badly!");
 def!(BadArgumentError, "bad argument...");
 def!(MissingOutputFileError, "no output file supplied!");
-def!(UnbalancedBinaryExpressionError, "unbalanced binary expression!");
+def!(
+    UnbalancedBinaryExpressionError,
+    "unbalanced binary expression!"
+);

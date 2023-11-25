@@ -8,7 +8,6 @@ pub struct Options {
     pub original_args: Vec<String>,
 }
 
-// gotta test this stuff
 impl Options {
     pub fn new(argv_ptr: *mut *mut c_char, size: usize) -> Result<Options> {
         let mut argv: Vec<String> = vec![];

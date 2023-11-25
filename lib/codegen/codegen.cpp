@@ -24,13 +24,10 @@ const unique_ptr<LLVMContext> &CodeGen::getContext()
 void CodeGen::addToError(string message, Location location)
 {
     if (!error)
-    {
         error = new CodeGenError(message, location);
-    }
+    
     else
-    {
         error->addToStack(message, location);
-    }
 }
 
 void CodeGen::printError()
@@ -68,7 +65,7 @@ int CodeGen::runPass(string outFile)
     WriteBitcodeToFile(*llvmModule, dest);
     dest.flush();
 
-    // TheModule->print(dbgs(), nullptr);
+    llvmModule->print(dbgs(), nullptr);
 
     return 0;
 }
@@ -84,9 +81,8 @@ AllocaInst *CodeGen::createEntryBlockAlloca(Function *function, StringRef varNam
 Function *CodeGen::loadFunction(string name)
 {
     if (auto *fn = llvmModule->getFunction(name))
-    {
         return fn;
-    }
+
     addToError("unknown function '" + name + "'", internal_err);
     return nullptr;
 }
@@ -202,7 +198,7 @@ Value *CodeGen::genChainExpression(const unique_ptr<ChainExpression> &chain)
     Function *parent = builder->GetInsertBlock()->getParent();
     BasicBlock *current = BasicBlock::Create(*context, "then", parent);
     BasicBlock *split = BasicBlock::Create(*context, "else", parent);
-    BasicBlock *merge = BasicBlock::Create(*context, "ifcont");
+    BasicBlock *merge = BasicBlock::Create(*context, "join");
 
     builder->CreateCondBr(predicate, current, split);
 

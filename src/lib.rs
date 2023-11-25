@@ -11,8 +11,8 @@ mod parser;
 
 #[no_mangle]
 pub extern "C" fn recieve_tokens(start: *mut *mut c_char, size: usize) -> FFISafeExprVec {
-    let options = Options::new(start, size).unwrap();
-    let tree = Parser::new(&options.filename).expect("no file :(").run();
+    let options = Options::new(start, size).expect("no filename given!");
+    let tree = Parser::new(&options.filename).expect("missing file!").run();
     
     let ffi_safe_tree = convert_vec(tree);
     let ffi_safe = FFISafeExprVec {
