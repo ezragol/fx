@@ -3,4 +3,4 @@ let fib(n) = (
     2.0 when n == 2.0, 3.0) 
         when n <= 3.0, 4.0
 
-let entry() = fib(1.0)
+let entry() = fi(5.0)

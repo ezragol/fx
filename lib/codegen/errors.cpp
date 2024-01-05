@@ -5,7 +5,7 @@ Location::Location(unsigned int line, unsigned int column, string filename)
 
 string Location::getMessage()
 {
-    return "@" + filename + ":" + to_string(line) + ":" + to_string(column);
+    return "@" + filename + ":" + to_string(line + 1) + ":" + to_string(column + 1);
 }
 
 CodeGenError::CodeGenError(string message, Location location)
