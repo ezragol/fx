@@ -37,7 +37,6 @@ void CodeGen::printError()
 
 int CodeGen::runPass(string outFile)
 {
-    auto fileType = CGFT_ObjectFile;
     std::error_code ec;
     raw_fd_ostream dest(outFile, ec, sys::fs::OF_None);
 
