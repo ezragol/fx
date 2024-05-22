@@ -1,10 +1,11 @@
 use crate::{ast::*, errors::*, lexer::*};
-use std::{error::Error, fs::File, io::BufReader};
+use std::{collections::HashMap, error::Error, fs::File, io::BufReader};
 
 pub struct Parser {
     tokens: Vec<LocatedToken>,
     index: usize,
     stack: Vec<Box<dyn Error>>,
+    registry: HashMap<String, ReturnType>,
 }
 
 #[cfg(test)]
@@ -183,6 +184,7 @@ impl Parser {
             tokens: lexer.pull()?,
             index: 0,
             stack: vec![],
+            registry: HashMap::new()
         })
     }
 
@@ -191,6 +193,7 @@ impl Parser {
             tokens,
             index: 0,
             stack: vec![],
+            registry: HashMap::new()
         }
     }
 
@@ -279,18 +282,60 @@ impl Parser {
         }
     }
 
+    fn trace_return_type(&mut self, expr: &LocatedExpr) -> Result<ReturnType> {
+        match expr.get_expr() {
+            Expr::NumberLiteral(floating, _, _) => Ok(if floating {
+                ReturnType::Float
+            } else {
+                ReturnType::Int
+            }),
+            Expr::BinaryOperation(_, left, right) => {
+                let left_type = self.trace_return_type(&left)?;
+                let right_type = self.trace_return_type(&right)?;
+                if left_type == right_type {
+                    Ok(left_type)
+                } else {
+                    UnbalancedBinaryExpressionError::while_parsing(right.get_location())
+                }
+            }
+            Expr::StringLiteral(_) => Ok(ReturnType::String),
+            Expr::FunctionDefinition(_, _, body, _) => self.trace_return_type(&body),
+            Expr::ChainExpression(links) => {
+                let mut last_link_type = None;
+                for link in links {
+                    let link_type = self.trace_return_type(&link)?;
+                    if last_link_type != None && last_link_type != Some(link_type.clone()) {
+                        return UnbalancedChainExpressionError::while_parsing(link.get_location());
+                    } else {
+                        last_link_type = Some(link_type);
+                    }
+                }
+                Ok(last_link_type.unwrap())
+            }
+            Expr::WhenExpression(_, result) => self.trace_return_type(&result),
+            Expr::FunctionCall(name, _) => {
+                Ok(self.registry.get(&name).unwrap().clone())
+            },
+            Expr::VariableRef(_) => {
+                
+            },
+        }
+    }
+
     fn parse_definition(&mut self) -> Result<LocatedExpr> {
         let identifier = self.expect_identifier()?;
         let next = self.next_token()?;
         match next.tok() {
-            Token::Grouping(args) => Ok(LocatedExpr::new(
-                Expr::FunctionDefinition(
-                    identifier,
-                    Parser::parse_def_args(args)?,
-                    self.parse_expr_or_err()?.into(),
-                ),
-                next.loc(),
-            )),
+            Token::Grouping(args) => {
+                let parsed_args = Parser::parse_def_args(args)?;
+                let body = self.parse_expr_or_err()?.into();
+                let return_type = self.trace_return_type(&body)?;
+                self.registry.insert(identifier.clone(), return_type.clone());
+                Ok(LocatedExpr::new(
+                    Expr::FunctionDefinition(identifier, parsed_args, body.into(), return_type),
+                    next.loc(),
+                ))
+            }
             _ => DeclarationError::while_parsing(next.loc()),
         }
     }

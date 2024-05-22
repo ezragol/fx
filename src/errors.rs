@@ -132,3 +132,7 @@ def!(
     UnbalancedBinaryExpressionError,
     "unbalanced binary expression!"
 );
+def!(
+    UnbalancedChainExpressionError,
+    "chain does not have consistent types!"
+);

@@ -40,6 +40,21 @@ impl LocatedExpr {
     pub fn new(expr: Expr, location: Location) -> LocatedExpr {
         LocatedExpr { expr, location }
     }
+
+    pub fn get_location(&self) -> Location {
+        self.location
+    }
+
+    pub fn get_expr(&self) -> Expr {
+        self.expr
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReturnType {
+    Int,
+    Float,
+    String
 }
 
 #[derive(Debug, Clone)]
@@ -48,8 +63,8 @@ pub enum Expr {
     NumberLiteral(bool, isize, f64),
     // string literal value
     StringLiteral(String),
-    // function name, argument names, function body
-    FunctionDefinition(String, Vec<String>, Box<LocatedExpr>),
+    // function name, argument names, function body, return type
+    FunctionDefinition(String, Vec<String>, Box<LocatedExpr>, ReturnType),
     // chain links -> when expressions as base cases, and finally a recursive expression
     ChainExpression(Vec<LocatedExpr>),
     // binary op as unsigned int, left, right
@@ -90,7 +105,7 @@ pub fn convert_expr(expr: LocatedExpr) -> LocatedFFISafeExpr {
     let located = match expr.expr {
         Expr::NumberLiteral(is_f, int, float) => FFISafeExpr::NumberLiteral(is_f, int, float),
         Expr::StringLiteral(src) => FFISafeExpr::StringLiteral(convert_str(src)),
-        Expr::FunctionDefinition(name, args, body) => {
+        Expr::FunctionDefinition(name, args, body, _) => {
             let arg_vec = convert_str_vec(args);
             FFISafeExpr::FunctionDefinition(
                 convert_str(name),
